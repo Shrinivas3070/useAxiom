@@ -55,12 +55,19 @@ const plannerJsonSchema = {
 
 export class PlannerAgent extends BaseAgent {
   async run(input: { objective: string; targetDeadline?: string }): Promise<ProjectPlanResponse> {
+    const historicalContext = await this.memory.getLongTermContext(input.objective);
+    const contextPrompt =
+      historicalContext.length > 0
+        ? `\n\nUse the following historical reference projects for similar scope and estimations:\n${historicalContext.join('\n')}`
+        : '';
+
     const messages = [
       {
         role: 'system' as const,
         content:
-          this.systemPrompt ||
-          'You are useAxiom\'s AI Project Planner. Break down the user\'s objective into a clean list of chronological milestones, and map concrete execution tasks with estimated hours and a list of required technical skills for each task. Be realistic and pragmatic.'
+          (this.systemPrompt ||
+            'You are useAxiom\'s AI Project Planner. Break down the user\'s objective into a clean list of chronological milestones, and map concrete execution tasks with estimated hours and a list of required technical skills for each task. Be realistic and pragmatic.') +
+          contextPrompt
       },
       {
         role: 'user' as const,
