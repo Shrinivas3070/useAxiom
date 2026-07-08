@@ -15,7 +15,10 @@ export class ProjectService {
     });
   }
 
-  async getProjects(organizationId: string, pagination?: { page?: number; limit?: number; status?: string }) {
+  async getProjects(
+    organizationId: string,
+    pagination?: { page?: number; limit?: number; status?: string },
+  ) {
     const page = pagination?.page ?? 1;
     const limit = pagination?.limit ?? 20;
     const skip = (page - 1) * limit;
@@ -63,7 +66,11 @@ export class ProjectService {
     return project;
   }
 
-  async updateProject(organizationId: string, id: string, updateData: IProjectUpdateDto) {
+  async updateProject(
+    organizationId: string,
+    id: string,
+    updateData: IProjectUpdateDto,
+  ) {
     await this.getProjectById(organizationId, id);
 
     const data: any = { ...updateData };
@@ -90,10 +97,24 @@ export class ProjectService {
 
   async approvePlan(organizationId: string, id: string) {
     await this.getProjectById(organizationId, id);
-    return prisma.project.update({
+
+    const project = await prisma.project.update({
       where: { id },
       data: { status: 'ACTIVE' },
     });
+
+    // Cascade: change all PROPOSED tasks inside this project to PENDING status
+    await prisma.task.updateMany({
+      where: {
+        project_id: id,
+        status: 'PROPOSED',
+      },
+      data: {
+        status: 'PENDING',
+      },
+    });
+
+    return project;
   }
 
   async generatePlan(organizationId: string, id: string) {
@@ -103,5 +124,39 @@ export class ProjectService {
       jobId: `job_${Math.random().toString(36).substr(2, 9)}`,
       projectId: id,
     };
+  }
+
+  async getProjectTasks(organizationId: string, projectId: string) {
+    await this.getProjectById(organizationId, projectId);
+    return prisma.task.findMany({
+      where: {
+        project_id: projectId,
+        deleted_at: null,
+      },
+    });
+  }
+
+  async getProjectMilestones(organizationId: string, projectId: string) {
+    await this.getProjectById(organizationId, projectId);
+    return prisma.milestone.findMany({
+      where: {
+        project_id: projectId,
+        deleted_at: null,
+      },
+    });
+  }
+
+  async createMilestone(
+    organizationId: string,
+    projectId: string,
+    name: string,
+  ) {
+    await this.getProjectById(organizationId, projectId);
+    return prisma.milestone.create({
+      data: {
+        project_id: projectId,
+        name,
+      },
+    });
   }
 }

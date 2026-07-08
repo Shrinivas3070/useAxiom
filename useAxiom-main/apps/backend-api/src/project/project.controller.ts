@@ -1,6 +1,22 @@
-import { Controller, Post, Get, Put, Delete, Body, Param, Query, HttpCode, HttpStatus, Headers } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  HttpCode,
+  HttpStatus,
+  Headers,
+} from '@nestjs/common';
 import { ProjectService } from './project.service';
-import type { IProjectCreateDto, IProjectUpdateDto } from '@useaxiom/types';
+import type {
+  IProjectCreateDto,
+  IProjectUpdateDto,
+  IMilestoneCreateDto,
+} from '@useaxiom/types';
 
 @Controller('projects')
 export class ProjectController {
@@ -85,5 +101,40 @@ export class ProjectController {
   ) {
     const organizationId = this.getOrgId(orgId);
     return this.projectService.generatePlan(organizationId, id);
+  }
+
+  @Get(':id/tasks')
+  @HttpCode(HttpStatus.OK)
+  async getProjectTasks(
+    @Headers('x-organization-id') orgId: string,
+    @Param('id') id: string,
+  ) {
+    const organizationId = this.getOrgId(orgId);
+    return this.projectService.getProjectTasks(organizationId, id);
+  }
+
+  @Get(':id/milestones')
+  @HttpCode(HttpStatus.OK)
+  async getProjectMilestones(
+    @Headers('x-organization-id') orgId: string,
+    @Param('id') id: string,
+  ) {
+    const organizationId = this.getOrgId(orgId);
+    return this.projectService.getProjectMilestones(organizationId, id);
+  }
+
+  @Post(':id/milestones')
+  @HttpCode(HttpStatus.CREATED)
+  async createMilestone(
+    @Headers('x-organization-id') orgId: string,
+    @Param('id') id: string,
+    @Body() milestoneData: IMilestoneCreateDto,
+  ) {
+    const organizationId = this.getOrgId(orgId);
+    return this.projectService.createMilestone(
+      organizationId,
+      id,
+      milestoneData.name,
+    );
   }
 }

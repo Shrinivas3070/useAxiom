@@ -11,4 +11,3 @@ import { AnalyticsModule } from './analytics/analytics.module';
   providers: [AppService],
 })
 export class AppModule {}
-

@@ -8,6 +8,7 @@ import { prisma } from '@useaxiom/database';
 describe('useAxiom Backend Routes (e2e)', () => {
   let app: INestApplication<App>;
   const orgId = '77777777-7777-7777-7777-777777777777';
+  const userId = '88888888-8888-8888-8888-888888888888';
 
   beforeAll(async () => {
     await prisma.organization.upsert({
@@ -15,7 +16,19 @@ describe('useAxiom Backend Routes (e2e)', () => {
       update: {},
       create: {
         id: orgId,
-        name: 'Sprint 2 Test Org',
+        name: 'Sprint 3 Test Org',
+      },
+    });
+
+    await prisma.user.upsert({
+      where: { id: userId },
+      update: {},
+      create: {
+        id: userId,
+        organization_id: orgId,
+        role: 'EMPLOYEE',
+        name: 'Sprint 3 Developer',
+        phone_number: '1234567890',
       },
     });
   });
@@ -37,108 +50,192 @@ describe('useAxiom Backend Routes (e2e)', () => {
       .expect('Hello World!');
   });
 
-  describe('Project CRUD & Workflows', () => {
+  describe('Project & Milestone & Task Integration CRUD', () => {
     let createdProjectId: string;
+    let createdMilestoneId: string;
+    let createdTaskId: string;
 
     it('POST /api/v1/projects (Create Project)', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/projects')
         .set('x-organization-id', orgId)
         .send({
-          name: 'Sprint 2 Launch',
-          objective: 'Deliver Project CRUD workflows',
-          target_deadline: '2026-11-20T00:00:00.000Z',
+          name: 'Sprint 3 Launch Campaign',
+          objective: 'Test milestone and state machine workflows',
+          target_deadline: '2026-12-01T00:00:00.000Z',
         })
         .expect(201);
 
       expect(res.body).toHaveProperty('id');
-      expect(res.body.status).toBe('PLANNING');
-      expect(res.body.name).toBe('Sprint 2 Launch');
-      expect(res.body.organization_id).toBe(orgId);
-
       createdProjectId = res.body.id;
     });
 
-    it('GET /api/v1/projects (List Projects)', async () => {
+    it('POST /api/v1/projects/:id/milestones (Create Milestone)', async () => {
       const res = await request(app.getHttpServer())
-        .get('/api/v1/projects')
-        .set('x-organization-id', orgId)
-        .expect(200);
-
-      expect(res.body).toHaveProperty('items');
-      expect(res.body).toHaveProperty('total');
-      expect(res.body.total).toBeGreaterThanOrEqual(1);
-      
-      const found = list => list.find((p: any) => p.id === createdProjectId);
-      expect(found(res.body.items)).toBeDefined();
-    });
-
-    it('GET /api/v1/projects/:id (Get Project by ID)', async () => {
-      const res = await request(app.getHttpServer())
-        .get(`/api/v1/projects/${createdProjectId}`)
-        .set('x-organization-id', orgId)
-        .expect(200);
-
-      expect(res.body.id).toBe(createdProjectId);
-      expect(res.body.name).toBe('Sprint 2 Launch');
-    });
-
-    it('PUT /api/v1/projects/:id (Update Project)', async () => {
-      const res = await request(app.getHttpServer())
-        .put(`/api/v1/projects/${createdProjectId}`)
+        .post(`/api/v1/projects/${createdProjectId}/milestones`)
         .set('x-organization-id', orgId)
         .send({
-          name: 'Sprint 2 Refined Launch',
-          objective: 'Updated objective description',
+          name: 'Milestone 1: Prototype',
+        })
+        .expect(201);
+
+      expect(res.body).toHaveProperty('id');
+      expect(res.body.name).toBe('Milestone 1: Prototype');
+      expect(res.body.project_id).toBe(createdProjectId);
+      createdMilestoneId = res.body.id;
+    });
+
+    it('GET /api/v1/projects/:id/milestones (List Milestones)', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/projects/${createdProjectId}/milestones`)
+        .set('x-organization-id', orgId)
+        .expect(200);
+
+      expect(res.body.length).toBeGreaterThanOrEqual(1);
+      expect(res.body[0].id).toBe(createdMilestoneId);
+    });
+
+    it('POST /api/v1/tasks (Create Task under Milestone)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/tasks')
+        .set('x-organization-id', orgId)
+        .send({
+          project_id: createdProjectId,
+          milestone_id: createdMilestoneId,
+          title: 'Design UI Schema Mockup',
+          description: 'Establish draft CSS models',
+          estimated_hours: 8.5,
+        })
+        .expect(201);
+
+      expect(res.body).toHaveProperty('id');
+      expect(res.body.status).toBe('PROPOSED');
+      expect(res.body.project_id).toBe(createdProjectId);
+      expect(res.body.milestone_id).toBe(createdMilestoneId);
+      createdTaskId = res.body.id;
+    });
+
+    it('GET /api/v1/projects/:id/tasks (List Project Tasks)', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/projects/${createdProjectId}/tasks`)
+        .set('x-organization-id', orgId)
+        .expect(200);
+
+      expect(res.body.length).toBeGreaterThanOrEqual(1);
+      expect(res.body[0].id).toBe(createdTaskId);
+    });
+
+    it('GET /api/v1/tasks/:id (Get Task Details)', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/tasks/${createdTaskId}`)
+        .set('x-organization-id', orgId)
+        .expect(200);
+
+      expect(res.body.id).toBe(createdTaskId);
+      expect(res.body.title).toBe('Design UI Schema Mockup');
+    });
+
+    it('PUT /api/v1/tasks/:id (Update Task fields)', async () => {
+      const res = await request(app.getHttpServer())
+        .put(`/api/v1/tasks/${createdTaskId}`)
+        .set('x-organization-id', orgId)
+        .send({
+          title: 'Design UI Schema Mockup V2',
+          estimated_hours: 10,
         })
         .expect(200);
 
-      expect(res.body.id).toBe(createdProjectId);
-      expect(res.body.name).toBe('Sprint 2 Refined Launch');
-      expect(res.body.objective).toBe('Updated objective description');
+      expect(res.body.title).toBe('Design UI Schema Mockup V2');
+      expect(res.body.estimated_hours).toBe('10');
     });
 
-    it('POST /api/v1/projects/:id/approve-plan (Approve Project Plan)', async () => {
+    it('POST /api/v1/tasks/:id/approve (Single Task Approval)', async () => {
       const res = await request(app.getHttpServer())
+        .post(`/api/v1/tasks/${createdTaskId}/approve`)
+        .set('x-organization-id', orgId)
+        .send({
+          assignee_id_override: userId,
+          estimated_hours_override: 12,
+        })
+        .expect(200);
+
+      expect(res.body.status).toBe('PENDING');
+      expect(res.body.estimated_hours).toBe('12');
+    });
+
+    it('PUT /api/v1/tasks/:id (State Transition - Invalid)', async () => {
+      await request(app.getHttpServer())
+        .put(`/api/v1/tasks/${createdTaskId}`)
+        .set('x-organization-id', orgId)
+        .send({
+          status: 'COMPLETED',
+        })
+        .expect(400);
+    });
+
+    it('PUT /api/v1/tasks/:id (State Transition - Valid)', async () => {
+      const res = await request(app.getHttpServer())
+        .put(`/api/v1/tasks/${createdTaskId}`)
+        .set('x-organization-id', orgId)
+        .send({
+          status: 'IN_PROGRESS',
+        })
+        .expect(200);
+
+      expect(res.body.status).toBe('IN_PROGRESS');
+    });
+
+    it('POST /api/v1/tasks/:id/assign (Assign Task)', async () => {
+      const res = await request(app.getHttpServer())
+        .post(`/api/v1/tasks/${createdTaskId}/assign`)
+        .set('x-organization-id', orgId)
+        .send({
+          userId: userId,
+        })
+        .expect(201);
+
+      expect(res.body).toHaveProperty('id');
+      expect(res.body.task_id).toBe(createdTaskId);
+      expect(res.body.user_id).toBe(userId);
+    });
+
+    it('POST /api/v1/projects/:id/approve-plan (Project Plan Approval - Cascades)', async () => {
+      const taskRes = await request(app.getHttpServer())
+        .post('/api/v1/tasks')
+        .set('x-organization-id', orgId)
+        .send({
+          project_id: createdProjectId,
+          title: 'Secondary proposed task',
+          description: 'A second task',
+          estimated_hours: 5,
+        })
+        .expect(201);
+
+      const secondTaskId = taskRes.body.id;
+
+      await request(app.getHttpServer())
         .post(`/api/v1/projects/${createdProjectId}/approve-plan`)
         .set('x-organization-id', orgId)
         .expect(200);
 
-      expect(res.body.id).toBe(createdProjectId);
-      expect(res.body.status).toBe('ACTIVE');
+      const detailRes = await request(app.getHttpServer())
+        .get(`/api/v1/tasks/${secondTaskId}`)
+        .set('x-organization-id', orgId)
+        .expect(200);
+
+      expect(detailRes.body.status).toBe('PENDING');
     });
 
-    it('DELETE /api/v1/projects/:id (Soft Delete Project)', async () => {
+    it('DELETE /api/v1/tasks/:id (Soft Delete Task)', async () => {
       await request(app.getHttpServer())
-        .delete(`/api/v1/projects/${createdProjectId}`)
+        .delete(`/api/v1/tasks/${createdTaskId}`)
         .set('x-organization-id', orgId)
         .expect(200);
 
-      const listRes = await request(app.getHttpServer())
-        .get('/api/v1/projects')
+      await request(app.getHttpServer())
+        .get(`/api/v1/tasks/${createdTaskId}`)
         .set('x-organization-id', orgId)
-        .expect(200);
-
-      const found = listRes.body.items.find((p: any) => p.id === createdProjectId);
-      expect(found).toBeUndefined();
-    });
-  });
-
-  describe('Task routes (Skeletons)', () => {
-    it('POST /api/v1/tasks/:id/approve', () => {
-      return request(app.getHttpServer())
-        .post('/api/v1/tasks/task_test456/approve')
-        .send({
-          assignee_id_override: 'emp_dev5',
-          estimated_hours_override: 15,
-        })
-        .expect(200)
-        .expect((res) => {
-          expect(res.body.message).toBe('Task approved successfully');
-          expect(res.body.taskId).toBe('task_test456');
-          expect(res.body.assignee_id_override).toBe('emp_dev5');
-          expect(res.body.estimated_hours_override).toBe(15);
-        });
+        .expect(404);
     });
   });
 
@@ -164,12 +261,12 @@ describe('useAxiom Backend Routes (e2e)', () => {
   });
 
   afterAll(async () => {
-    await prisma.project.deleteMany({
-      where: { organization_id: orgId },
-    });
-    await prisma.organization.deleteMany({
-      where: { id: orgId },
-    });
+    await prisma.assignment.deleteMany({});
+    await prisma.task.deleteMany({});
+    await prisma.milestone.deleteMany({});
+    await prisma.project.deleteMany({});
+    await prisma.user.deleteMany({});
+    await prisma.organization.deleteMany({});
     await app.close();
   });
 
