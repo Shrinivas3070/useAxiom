@@ -37,7 +37,12 @@ export class TaskService {
     visited.add(currentId);
 
     const deps = await prisma.taskDependency.findMany({
-      where: { task_id: currentId },
+      where: {
+        task_id: currentId,
+        prerequisite: {
+          deleted_at: null,
+        },
+      },
     });
 
     for (const dep of deps) {
@@ -56,6 +61,7 @@ export class TaskService {
       where: {
         id: taskData.project_id,
         organization_id: organizationId,
+        deleted_at: null,
       },
     });
 
@@ -66,10 +72,14 @@ export class TaskService {
     }
 
     if (taskData.milestone_id) {
-      const milestone = await prisma.milestone.findUnique({
-        where: { id: taskData.milestone_id },
+      const milestone = await prisma.milestone.findFirst({
+        where: {
+          id: taskData.milestone_id,
+          project_id: taskData.project_id,
+          deleted_at: null,
+        },
       });
-      if (!milestone || milestone.project_id !== taskData.project_id) {
+      if (!milestone) {
         throw new NotFoundException(`Milestone not found in this project`);
       }
     }
@@ -168,7 +178,6 @@ export class TaskService {
     if (updateData.status) {
       this.validateStatusTransition(task.status, updateData.status);
 
-      // Rule: Block taking a task to IN_PROGRESS if prerequisites are not COMPLETED
       if (updateData.status === 'IN_PROGRESS') {
         const blockedBy = await prisma.taskDependency.findMany({
           where: { task_id: id },
@@ -176,7 +185,9 @@ export class TaskService {
         });
 
         const incomplete = blockedBy.filter(
-          (dep) => dep.prerequisite.status !== 'COMPLETED',
+          (dep) =>
+            dep.prerequisite.status !== 'COMPLETED' &&
+            dep.prerequisite.deleted_at === null,
         );
         if (incomplete.length > 0) {
           const names = incomplete
@@ -321,7 +332,6 @@ export class TaskService {
       throw new BadRequestException('Tasks must belong to the same project');
     }
 
-    // DFS check to prevent cycles
     const hasCycle = await this.hasCircularPath(
       dependsOnTaskId,
       taskId,
@@ -353,10 +363,7 @@ export class TaskService {
     taskId: string,
     dependsOnTaskId: string,
   ) {
-    await Promise.all([
-      this.getTaskById(organizationId, taskId),
-      this.getTaskById(organizationId, dependsOnTaskId),
-    ]);
+    await this.getTaskById(organizationId, taskId);
 
     return prisma.taskDependency.delete({
       where: {
@@ -383,8 +390,12 @@ export class TaskService {
     ]);
 
     return {
-      prerequisites: prerequisites.map((d) => d.prerequisite),
-      dependents: dependents.map((d) => d.task),
+      prerequisites: prerequisites
+        .filter((d) => d.prerequisite.deleted_at === null)
+        .map((d) => d.prerequisite),
+      dependents: dependents
+        .filter((d) => d.task.deleted_at === null)
+        .map((d) => d.task),
     };
   }
 }
