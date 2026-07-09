@@ -1,7 +1,7 @@
 import { Job } from 'bullmq';
 import { AiOrchestrator } from '@useaxiom/ai-core';
 import { getLlmProvider } from '@useaxiom/ai-providers';
-import prisma from '@useaxiom/database';
+import { prisma } from '@useaxiom/database';
 import { InMemoryMemory } from '@useaxiom/ai-memory';
 
 export async function plannerWorkerProcessor(job: Job) {

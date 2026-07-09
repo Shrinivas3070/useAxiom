@@ -2,7 +2,7 @@ import { Worker, Job } from 'bullmq';
 import IORedis from 'ioredis';
 // import { prisma } from '@useaxiom/database'; // Ready for DB usage
 
-export const setupNotificationsWorker = (connection: IORedis) => {
+export const setupNotificationsWorker = (connection: any) => {
   const worker = new Worker(
     'notifications',
     async (job: Job) => {
