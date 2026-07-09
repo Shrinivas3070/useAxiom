@@ -1,0 +1,125 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Organization {
+  id                  String     @id @default(uuid())
+  name                String
+  whatsapp_business_id String?
+  created_at          DateTime   @default(now())
+  deleted_at          DateTime?
+  users               User[]
+  projects            Project[]
+
+  @@map("organizations")
+}
+
+model Department {
+  id              String        @id @default(uuid())
+  name            String
+  organization_id String
+  created_at      DateTime      @default(now())
+  deleted_at      DateTime?
+  users           User[]
+
+  @@map("departments")
+}
+
+model User {
+  id              String        @id @default(uuid())
+  organization_id String
+  department_id   String?
+  role            String        // ADMIN, MANAGER, EMPLOYEE
+  name            String
+  email           String?
+  phone_number    String        // Unique within Org
+  created_at      DateTime      @default(now())
+  deleted_at      DateTime?
+  organization    Organization  @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  department      Department?   @relation(fields: [department_id], references: [id], onDelete: SetNull)
+  projects        Project[]     // Managed projects
+  assignments     Assignment[]
+
+  @@unique([organization_id, phone_number])
+  @@map("users")
+}
+
+model Project {
+  id              String        @id @default(uuid())
+  organization_id String
+  manager_id      String?
+  name            String
+  objective       String
+  status          String        @default("PLANNING") // PLANNING, ACTIVE, COMPLETED, HOLD
+  target_deadline DateTime
+  created_at      DateTime      @default(now())
+  deleted_at      DateTime?
+  organization    Organization  @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  manager         User?         @relation(fields: [manager_id], references: [id], onDelete: SetNull)
+  milestones      Milestone[]
+  tasks           Task[]
+
+  @@map("projects")
+}
+
+model Milestone {
+  id         String     @id @default(uuid())
+  project_id String
+  name       String
+  created_at DateTime   @default(now())
+  deleted_at DateTime?
+  project    Project    @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  tasks      Task[]
+
+  @@map("milestones")
+}
+
+model Task {
+  id              String             @id @default(uuid())
+  organization_id String
+  project_id      String
+  milestone_id    String?
+  title           String
+  description     String
+  status          String             @default("PROPOSED") // PROPOSED, PENDING, IN_PROGRESS, BLOCKED, COMPLETED
+  estimated_hours Decimal
+  created_by_ai   Boolean            @default(false)
+  created_at      DateTime           @default(now())
+  deleted_at      DateTime?
+  project         Project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  milestone       Milestone?         @relation(fields: [milestone_id], references: [id], onDelete: SetNull)
+  assignments     Assignment[]
+  dependencies    TaskDependency[]   @relation("TaskToPrerequisite")
+  dependents      TaskDependency[]   @relation("PrerequisiteToTask")
+
+  @@map("tasks")
+}
+
+model TaskDependency {
+  id                  String   @id @default(uuid())
+  task_id             String
+  depends_on_task_id  String
+  created_at          DateTime @default(now())
+  task                Task     @relation("TaskToPrerequisite", fields: [task_id], references: [id], onDelete: Cascade)
+  prerequisite        Task     @relation("PrerequisiteToTask", fields: [depends_on_task_id], references: [id], onDelete: Cascade)
+
+  @@unique([task_id, depends_on_task_id])
+  @@map("task_dependencies")
+}
+
+model Assignment {
+  id         String   @id @default(uuid())
+  task_id    String
+  user_id    String
+  created_at DateTime @default(now())
+  task       Task     @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([task_id, user_id])
+  @@map("assignments")
+}
