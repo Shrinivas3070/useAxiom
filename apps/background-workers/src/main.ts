@@ -13,7 +13,7 @@ import { createOutgoingMessagesWorker } from './workers/outgoing-messages.worker
 import { createReminderSchedulerWorker } from './workers/reminder-scheduler.worker';
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-const redisConnection = new IORedis(redisUrl);
+const redisConnection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
 
 console.log(`Starting Background Workers with Redis URL: ${redisUrl}...`);
 
