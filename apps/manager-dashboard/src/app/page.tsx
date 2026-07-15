@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { 
   FolderKanban, 
   CheckCircle2, 
@@ -17,9 +18,37 @@ import {
 import { Button, Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Badge } from "@useaxiom/ui";
 
 export default function Home() {
-  // Client state to make dashboard interactive and "alive"
   const [hasApprovedPlan, setHasApprovedPlan] = useState(false);
   const [hasResolvedBlocker, setHasResolvedBlocker] = useState(false);
+  const [projects, setProjects] = useState<any[]>([]);
+
+  const router = useRouter();
+
+  useEffect(() => {
+    const token = localStorage.getItem('axiom_token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    fetch('http://localhost:3000/api/v1/projects', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => {
+        if (res.status === 401) {
+          localStorage.removeItem('axiom_token');
+          router.push('/login');
+          return null;
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (data && Array.isArray(data)) {
+          setProjects(data);
+        }
+      })
+      .catch(err => console.error("Failed to fetch projects:", err));
+  }, [router]);
 
   const stats = [
     { name: "Active Projects", value: hasApprovedPlan ? "3" : "2", icon: FolderKanban, color: "text-purple-400" },
@@ -28,8 +57,36 @@ export default function Home() {
     { name: "Automation Mode", value: "AI Assisted", icon: Cpu, color: "text-emerald-400" },
   ];
 
-  const handleApprove = () => {
-    setHasApprovedPlan(true);
+  const handleApprove = async (id: string) => {
+    try {
+      const token = localStorage.getItem('axiom_token');
+      await fetch(`http://localhost:3000/api/v1/projects/${id}/approve`, { 
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      setHasApprovedPlan(true);
+      // Re-fetch
+      const res = await fetch('http://localhost:3000/api/v1/projects', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (Array.isArray(data)) setProjects(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleGenerate = async (id: string) => {
+    try {
+      const token = localStorage.getItem('axiom_token');
+      await fetch(`http://localhost:3000/api/v1/projects/${id}/generate-plan`, { 
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      alert('Plan generation triggered!');
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleResolveBlocker = () => {
@@ -162,64 +219,41 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Link href="/projects/axiom-platform-setup" className="block group">
-                <Card className="h-full border-zinc-800/80 group-hover:border-purple-500/30 transition-all duration-300">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="font-semibold text-zinc-200 group-hover:text-purple-400 transition-colors">Axiom Platform Setup</h3>
-                      <p className="text-[10px] text-zinc-500 font-medium mt-0.5">Core System Migration</p>
+              {projects.map((project) => (
+                <Link href={`/projects/${project.id}`} key={project.id} className="block group">
+                  <Card className="h-full border-zinc-800/80 group-hover:border-purple-500/30 transition-all duration-300">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="font-semibold text-zinc-200 group-hover:text-purple-400 transition-colors">{project.name}</h3>
+                        <p className="text-[10px] text-zinc-500 font-medium mt-0.5 line-clamp-1">{project.objective}</p>
+                      </div>
+                      <Badge variant={project.status === 'ACTIVE' ? "progress" : "proposed"}>
+                        {project.status === 'ACTIVE' ? "In Progress" : project.status}
+                      </Badge>
                     </div>
-                    <Badge variant="progress">In Progress</Badge>
-                  </div>
-                  
-                  {/* Progress bar */}
-                  <div className="space-y-1.5 mt-6">
-                    <div className="flex justify-between text-xs font-medium text-zinc-400">
-                      <span>Execution Progress</span>
-                      <span className="text-zinc-200">75%</span>
-                    </div>
-                    <div className="w-full bg-zinc-850 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-gradient-to-r from-purple-500 to-indigo-500 h-full rounded-full" style={{ width: "75%" }} />
-                    </div>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-zinc-850 flex items-center justify-between text-[10px] text-zinc-500 font-medium">
-                    <span className="text-emerald-400">🟢 On Track</span>
-                    <span>3 / 4 Tasks Done</span>
-                  </div>
-                </Card>
-              </Link>
 
-              {/* Second card changes status based on approval */}
-              <Link href="/projects/q3-marketing-launch" className="block group">
-                <Card className={`h-full border-zinc-800/80 group-hover:border-purple-500/30 transition-all duration-300 ${!hasApprovedPlan ? 'opacity-85' : ''}`}>
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="font-semibold text-zinc-200 group-hover:text-purple-400 transition-colors">Q3 Marketing Launch</h3>
-                      <p className="text-[10px] text-zinc-500 font-medium mt-0.5">Asset Breakdown & Campaign</p>
+                    {/* Progress bar */}
+                    <div className="space-y-1.5 mt-6">
+                      <div className="flex justify-between text-xs font-medium text-zinc-400">
+                        <span>Execution Progress</span>
+                        <span className="text-zinc-200">{project.status === 'ACTIVE' ? "0%" : "—"}</span>
+                      </div>
+                      <div className="w-full bg-zinc-850 h-1.5 rounded-full overflow-hidden">
+                        <div className="bg-gradient-to-r from-purple-500 to-indigo-500 h-full rounded-full" style={{ width: project.status === 'ACTIVE' ? "5%" : "0%" }} />
+                      </div>
                     </div>
-                    <Badge variant={hasApprovedPlan ? "progress" : "proposed"}>
-                      {hasApprovedPlan ? "In Progress" : "Proposed"}
-                    </Badge>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div className="space-y-1.5 mt-6">
-                    <div className="flex justify-between text-xs font-medium text-zinc-400">
-                      <span>Execution Progress</span>
-                      <span className="text-zinc-200">{hasApprovedPlan ? "0%" : "—"}</span>
+                    <div className="mt-4 pt-4 border-t border-zinc-850 flex items-center justify-between text-[10px] text-zinc-500 font-medium">
+                      <span className={project.status === 'ACTIVE' ? "text-emerald-400" : "text-amber-400"}>
+                        {project.status === 'ACTIVE' ? "🟢 On Track" : "⚠️ Needs Review"}
+                      </span>
+                      <span>
+                        <Button variant="ghost" size="sm" className="h-5 text-[9px]" onClick={(e) => { e.preventDefault(); handleGenerate(project.id); }}>Generate Plan</Button>
+                        <Button variant="ghost" size="sm" className="h-5 text-[9px]" onClick={(e) => { e.preventDefault(); handleApprove(project.id); }}>Approve</Button>
+                      </span>
                     </div>
-                    <div className="w-full bg-zinc-850 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-gradient-to-r from-purple-500 to-indigo-500 h-full rounded-full" style={{ width: hasApprovedPlan ? "0%" : "0%" }} />
-                    </div>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-zinc-850 flex items-center justify-between text-[10px] text-zinc-500 font-medium">
-                    <span className={hasApprovedPlan ? "text-emerald-400" : "text-amber-400"}>
-                      {hasApprovedPlan ? "🟢 On Track" : "⚠️ Needs Review"}
-                    </span>
-                    <span>{hasApprovedPlan ? "0 / 3 Tasks Done" : "3 Proposed"}</span>
-                  </div>
-                </Card>
-              </Link>
+                  </Card>
+                </Link>
+              ))}
             </div>
           </div>
         </div>

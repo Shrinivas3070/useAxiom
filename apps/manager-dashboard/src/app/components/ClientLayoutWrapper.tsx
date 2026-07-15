@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import DashboardShell from './DashboardShell';
 import { ReactNode } from 'react';
+import { AiChatPanel } from './AiChatPanel';
 
 export default function ClientLayoutWrapper({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -12,5 +13,10 @@ export default function ClientLayoutWrapper({ children }: { children: ReactNode 
     return <>{children}</>;
   }
 
-  return <DashboardShell>{children}</DashboardShell>;
+  return (
+    <DashboardShell>
+      {children}
+      <AiChatPanel />
+    </DashboardShell>
+  );
 }

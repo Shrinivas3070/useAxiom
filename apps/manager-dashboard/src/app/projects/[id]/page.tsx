@@ -1,7 +1,8 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { 
   ArrowLeft, 
   Clock, 
@@ -46,103 +47,74 @@ interface PageProps {
 export default function ProjectDetailPage({ params }: PageProps) {
   const { id } = use(params);
 
-  // Core project mock database
-  const [projectData, setProjectData] = useState<Record<string, ProjectDetails>>({
-    "axiom-platform-setup": {
-      id: "axiom-platform-setup",
-      name: "Axiom Platform Setup",
-      category: "Core Infrastructure",
-      health: "on_track",
-      progress: 75,
-      description: "Initialize workspace configurations, setup local dev containers, and configure NestJS base modules.",
-      milestones: [
-        {
-          id: "m1",
-          title: "Scaffolding & Workspaces",
-          status: "completed",
-          tasks: [
-            { id: "t1", name: "Turborepo & NestJS init", assignee: "Alex", status: "completed", duration: "1d" },
-            { id: "t2", name: "ESLint, Prettier, Husky configs", assignee: "Dave", status: "completed", duration: "0.5d" }
-          ]
-        },
-        {
-          id: "m2",
-          title: "Database Integration",
-          status: "progress",
-          tasks: [
-            { id: "t3", name: "Prisma & PostgreSQL migration schema", assignee: "Sarah", status: "completed", duration: "1.5d" },
-            { id: "t4", name: "Implement Tenant-ID database validation", assignee: "Sarah", status: "progress", duration: "2d" }
-          ]
-        }
-      ]
-    },
-    "q3-marketing-launch": {
-      id: "q3-marketing-launch",
-      name: "Q3 Marketing Launch",
-      category: "Product Growth",
-      health: "review",
-      progress: 0,
-      description: "Deconstruct goal into atomic social media and creative asset tasks, and assign to marketing resource pool.",
-      milestones: [
-        {
-          id: "m3",
-          title: "Asset Creation",
-          status: "progress",
-          tasks: [
-            { id: "t5", name: "Draft Email & Press Releases", assignee: "Sarah", status: "proposed", duration: "1d" },
-            { id: "t6", name: "Configure Social Media Audience", assignee: "Alex", status: "proposed", duration: "2d" },
-            { id: "t7", name: "Load Creative Assets & Graphics", assignee: "Dave", status: "blocked", blockerDescription: "Google Drive folder link is broken/unreachable.", duration: "1d" }
-          ]
-        }
-      ]
+  const [project, setProject] = useState<any>(null);
+  const [milestones, setMilestones] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const router = useRouter();
+
+  const fetchData = async () => {
+    try {
+      const token = localStorage.getItem('axiom_token');
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+      
+      const headers = { 'Authorization': `Bearer ${token}` };
+
+      const [pRes, mRes, tRes] = await Promise.all([
+        fetch(`http://localhost:3000/api/v1/projects/${id}`, { headers }),
+        fetch(`http://localhost:3000/api/v1/projects/${id}/milestones`, { headers }),
+        fetch(`http://localhost:3000/api/v1/projects/${id}/tasks`, { headers })
+      ]);
+
+      if (pRes.status === 401 || mRes.status === 401 || tRes.status === 401) {
+        localStorage.removeItem('axiom_token');
+        router.push('/login');
+        return;
+      }
+
+      setProject(await pRes.json());
+      setMilestones(await mRes.json());
+      setTasks(await tRes.json());
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
     }
-  });
-
-  const project = projectData[id] || {
-    id: "unknown",
-    name: "Unknown Campaign",
-    category: "General",
-    health: "review" as const,
-    progress: 0,
-    description: "No details available.",
-    milestones: []
   };
 
-  // State handles interactive reassignments or updates
+  useEffect(() => {
+    fetchData();
+  }, [id, router]);
+
   const handleResolveBlocker = (taskId: string) => {
-    setProjectData((prev) => {
-      const updatedProject = { ...prev[id] };
-      updatedProject.milestones = updatedProject.milestones.map((milestone) => {
-        const updatedTasks = milestone.tasks.map((task) => {
-          if (task.id === taskId) {
-            return { ...task, status: "progress" as const, blockerDescription: undefined };
-          }
-          return task;
-        });
-        return { ...milestone, tasks: updatedTasks };
-      });
-      // Recalculate health and progress
-      updatedProject.health = "on_track";
-      return { ...prev, [id]: updatedProject };
-    });
+    // Implement API call if needed
+    fetchData();
   };
 
-  const handleApprovePlan = () => {
-    setProjectData((prev) => {
-      const updatedProject = { ...prev[id] };
-      updatedProject.milestones = updatedProject.milestones.map((milestone) => {
-        const updatedTasks = milestone.tasks.map((task) => {
-          if (task.status === "proposed") {
-            return { ...task, status: "pending" as const };
-          }
-          return task;
-        });
-        return { ...milestone, tasks: updatedTasks };
+  const handleApprovePlan = async () => {
+    try {
+      const token = localStorage.getItem('axiom_token');
+      await fetch(`http://localhost:3000/api/v1/projects/${id}/approve`, { 
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      updatedProject.health = "on_track";
-      return { ...prev, [id]: updatedProject };
-    });
+      fetchData();
+    } catch (e) {
+      console.error(e);
+    }
   };
+
+  if (loading) {
+    return <div className="text-zinc-400 p-8">Loading project details...</div>;
+  }
+
+  if (!project) {
+    return <div className="text-rose-400 p-8">Project not found</div>;
+  }
 
   const getTaskStatusBadge = (status: Task["status"]) => {
     switch (status) {
@@ -173,24 +145,24 @@ export default function ProjectDetailPage({ params }: PageProps) {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold text-purple-400 uppercase tracking-widest bg-purple-500/5 px-2.5 py-0.5 rounded border border-purple-500/10">
-              {project.category}
+              {project.status || 'PROJECT'}
             </span>
-            <Badge variant={project.health === "on_track" ? "completed" : project.health === "at_risk" ? "blocked" : "proposed"}>
-              {project.health === "on_track" ? "On Track" : project.health === "at_risk" ? "At Risk" : "Awaiting Review"}
+            <Badge variant={project.status === "ACTIVE" ? "progress" : project.status === "COMPLETED" ? "completed" : "proposed"}>
+              {project.status === "ACTIVE" ? "In Progress" : project.status === "COMPLETED" ? "Done" : "Awaiting Review"}
             </Badge>
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-zinc-100">{project.name}</h1>
-          <p className="text-zinc-400 text-sm max-w-2xl">{project.description}</p>
+          <p className="text-zinc-400 text-sm max-w-2xl">{project.objective}</p>
         </div>
 
         {/* Progress Bar Widget */}
         <div className="w-full lg:w-72 bg-zinc-900 p-4 rounded-2xl border border-zinc-850 space-y-2">
           <div className="flex justify-between items-center text-xs font-semibold">
             <span className="text-zinc-500 uppercase tracking-wider">Campaign Progress</span>
-            <span className="text-zinc-200">{project.progress}%</span>
+            <span className="text-zinc-200">{project.status === 'ACTIVE' ? 10 : 0}%</span>
           </div>
           <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
-            <div className="bg-gradient-to-r from-purple-500 to-indigo-500 h-full rounded-full" style={{ width: `${project.progress}%` }} />
+            <div className="bg-gradient-to-r from-purple-500 to-indigo-500 h-full rounded-full" style={{ width: `${project.status === 'ACTIVE' ? 10 : 0}%` }} />
           </div>
         </div>
       </div>
@@ -202,7 +174,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
           <span className="text-xs font-semibold text-zinc-300">Campaign Execution Log</span>
         </div>
         <div className="flex gap-2">
-          {project.milestones.some(m => m.tasks.some(t => t.status === "proposed")) && (
+          {tasks.some(t => t.status === "PROPOSED") && (
             <Button variant="primary" size="sm" onClick={handleApprovePlan} className="rounded-xl">
               <Play className="w-3.5 h-3.5 text-white fill-white" />
               <span>Approve Proposed Plan</span>
@@ -215,32 +187,29 @@ export default function ProjectDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Milestones and Tasks Flow */}
+      {/* Tasks Flow */}
       <div className="space-y-6">
-        {project.milestones.map((milestone) => (
-          <div key={milestone.id} className="space-y-3">
+        {tasks.length > 0 ? (
+          <div className="space-y-3">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <ChevronRight className="w-4 h-4 text-zinc-500" />
-                <h3 className="font-bold text-zinc-200 text-sm">{milestone.title}</h3>
+                <h3 className="font-bold text-zinc-200 text-sm">All Tasks</h3>
               </div>
-              <span className="text-[10px] text-zinc-500 font-semibold uppercase bg-zinc-900/50 px-2 py-0.5 rounded border border-zinc-850">
-                Milestone Status: {milestone.status}
-              </span>
             </div>
 
             {/* Task list inside card */}
             <Card className="divide-y divide-zinc-800/60 p-0 overflow-hidden">
-              {milestone.tasks.map((task) => (
+              {tasks.map((task) => (
                 <div key={task.id} className="p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-zinc-900/15 transition-colors">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-zinc-200">{task.name}</span>
-                      {getTaskStatusBadge(task.status)}
+                      <span className="text-sm font-semibold text-zinc-200">{task.title}</span>
+                      {getTaskStatusBadge(task.status.toLowerCase())}
                     </div>
-                    {task.blockerDescription && (
-                      <span className="text-xs text-rose-400 font-medium bg-rose-500/5 border border-rose-500/10 px-2 py-1 rounded block max-w-xl">
-                        Blocker feedback: &quot;{task.blockerDescription}&quot;
+                    {task.description && (
+                      <span className="text-xs text-zinc-400 font-medium block max-w-xl">
+                        {task.description}
                       </span>
                     )}
                   </div>
@@ -249,16 +218,12 @@ export default function ProjectDetailPage({ params }: PageProps) {
                     {/* Task Metadata */}
                     <div className="flex items-center gap-3 text-xs text-zinc-400">
                       <span className="font-semibold bg-zinc-950 px-2.5 py-1 rounded border border-zinc-850">
-                        {task.assignee}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-zinc-500" />
-                        {task.duration}
+                        {task.estimatedHours || 1} hrs
                       </span>
                     </div>
 
                     {/* Interactive Resolves */}
-                    {task.status === "blocked" && (
+                    {task.status === "BLOCKED" && (
                       <Button variant="danger" size="sm" onClick={() => handleResolveBlocker(task.id)} className="h-8 text-[11px] rounded-lg">
                         Resolve Blocker
                       </Button>
@@ -271,7 +236,9 @@ export default function ProjectDetailPage({ params }: PageProps) {
               ))}
             </Card>
           </div>
-        ))}
+        ) : (
+          <div className="text-zinc-500 text-sm py-4">No tasks found for this project yet.</div>
+        )}
       </div>
     </div>
   );

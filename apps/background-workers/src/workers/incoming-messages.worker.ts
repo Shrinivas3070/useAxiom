@@ -1,5 +1,5 @@
 import { Worker, Job, Queue } from 'bullmq';
-import { getMockTasks } from '../utils/mock-db';
+import { prisma } from '@useaxiom/database';
 
 export function createIncomingMessagesWorker(
   redisConnection: any,
@@ -51,25 +51,41 @@ export function createIncomingMessagesWorker(
 
       console.info(`[IncomingWorker] Classified intent: ${intent}`);
 
-      // Locate task context
-      const tasks = getMockTasks();
-      const activeTask = tasks.find(
-        (t) => t.assigneePhone === waId && t.status !== 'COMPLETED'
-      );
+      // Locate task context via Prisma
+      const assignment = await prisma.assignment.findFirst({
+        where: {
+          user: {
+            phoneNumber: waId
+          },
+          task: {
+            status: {
+              in: ['PENDING', 'IN_PROGRESS', 'BLOCKED']
+            }
+          }
+        },
+        include: {
+          task: true,
+          user: true
+        }
+      });
 
-      if (activeTask) {
+      if (assignment) {
+        const activeTask = assignment.task;
+        const employeeName = assignment.user.name;
         console.info(`[IncomingWorker] Active task found for employee: ${activeTask.title} (ID: ${activeTask.id})`);
 
         if (intent === 'COMPLETED') {
           console.info(`[IncomingWorker] Task ${activeTask.id} marked as COMPLETED`);
+          await prisma.task.update({ where: { id: activeTask.id }, data: { status: 'COMPLETED' } });
           await outgoingQueue.add('send_message', {
             to: waId,
-            content: `Great job, ${name}! I have marked your task "${activeTask.title}" as COMPLETED. Let me know when you are ready to start the next one.`,
+            content: `Great job, ${employeeName}! I have marked your task "${activeTask.title}" as COMPLETED. Let me know when you are ready to start the next one.`,
             timestamp: new Date().toISOString(),
           });
         } 
         else if (intent === 'BLOCKED') {
           console.info(`[IncomingWorker] Task ${activeTask.id} marked as BLOCKED`);
+          await prisma.task.update({ where: { id: activeTask.id }, data: { status: 'BLOCKED' } });
           await outgoingQueue.add('send_message', {
             to: waId,
             content: `I've marked your task "${activeTask.title}" as BLOCKED and notified your manager. We will get back to you shortly.`,
@@ -85,6 +101,7 @@ export function createIncomingMessagesWorker(
           });
         }
         else if (intent === 'STARTING') {
+          await prisma.task.update({ where: { id: activeTask.id }, data: { status: 'IN_PROGRESS' } });
           await outgoingQueue.add('send_message', {
             to: waId,
             content: `Got it! I've updated your status. Good luck starting "${activeTask.title}". Let me know if you run into any issues.`,
@@ -94,14 +111,14 @@ export function createIncomingMessagesWorker(
         else if (intent === 'DELAYED') {
           await outgoingQueue.add('send_message', {
             to: waId,
-            content: `No worries, ${name}. I've logged the delay for "${activeTask.title}". Make sure to keep us updated!`,
+            content: `No worries, ${employeeName}. I've logged the delay for "${activeTask.title}". Make sure to keep us updated!`,
             timestamp: new Date().toISOString(),
           });
         }
         else {
           await outgoingQueue.add('send_message', {
             to: waId,
-            content: `Hi ${name}, I couldn't quite determine if you were updating your task status. If you are finished, reply "Done". If you are stuck, reply "Blocked".`,
+            content: `Hi ${employeeName}, I couldn't quite determine if you were updating your task status. If you are finished, reply "Done". If you are stuck, reply "Blocked".`,
             timestamp: new Date().toISOString(),
           });
         }

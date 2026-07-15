@@ -21,6 +21,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       {
         name: 'outgoing_messages',
       },
+      {
+        name: 'planner_jobs',
+      }
     ),
   ],
   exports: [BullModule],
