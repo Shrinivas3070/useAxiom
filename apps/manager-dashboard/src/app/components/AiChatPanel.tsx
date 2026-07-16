@@ -39,7 +39,7 @@ export function AiChatPanel() {
 
     try {
       const token = localStorage.getItem('axiom_token');
-      const res = await fetch("http://localhost:3001/api/v1/ai/chat", {
+      const res = await fetch("/api/v1/ai/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

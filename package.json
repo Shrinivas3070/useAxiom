@@ -18,5 +18,11 @@
   "engines": {
     "node": ">=18"
   },
-  "packageManager": "pnpm@9.0.0"
+  "packageManager": "pnpm@9.0.0",
+  "pnpm": {
+    "overrides": {
+      "@nestjs/common": "^11.0.1",
+      "@nestjs/core": "^11.0.1"
+    }
+  }
 }

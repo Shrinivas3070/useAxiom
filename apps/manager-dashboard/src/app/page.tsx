@@ -31,7 +31,7 @@ export default function Home() {
       return;
     }
 
-    fetch('http://localhost:3001/api/v1/projects', {
+    fetch('/api/v1/projects', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => {
@@ -60,13 +60,13 @@ export default function Home() {
   const handleApprove = async (id: string) => {
     try {
       const token = localStorage.getItem('axiom_token');
-      await fetch(`http://localhost:3001/api/v1/projects/${id}/approve`, { 
+      await fetch(`/api/v1/projects/${id}/approve`, { 
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
       setHasApprovedPlan(true);
       // Re-fetch
-      const res = await fetch('http://localhost:3001/api/v1/projects', {
+      const res = await fetch('/api/v1/projects', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -79,7 +79,7 @@ export default function Home() {
   const handleGenerate = async (id: string) => {
     try {
       const token = localStorage.getItem('axiom_token');
-      await fetch(`http://localhost:3001/api/v1/projects/${id}/generate-plan`, { 
+      await fetch(`/api/v1/projects/${id}/generate-plan`, { 
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -190,7 +190,14 @@ export default function Home() {
                   <Button variant="outline" size="sm" onClick={() => setHasApprovedPlan(true)}>
                     Reject
                   </Button>
-                  <Button variant="primary" size="sm" onClick={handleApprove}>
+                  <Button variant="primary" size="sm" onClick={() => {
+                    const proposed = projects.find(p => p.status === 'PROPOSED' || p.name.includes('Q3'));
+                    if (proposed) {
+                      handleApprove(proposed.id);
+                    } else {
+                      setHasApprovedPlan(true);
+                    }
+                  }}>
                     <Play className="w-3.5 h-3.5 text-white fill-white" />
                     <span>Approve & Start Execution</span>
                   </Button>

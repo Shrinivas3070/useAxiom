@@ -17,7 +17,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:3000/api/v1/auth/login", {
+      const res = await fetch("/api/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -104,7 +104,7 @@ export default function LoginPage() {
             </button>
           </form>
         </div>
-        
+
         <p className="text-center text-zinc-600 text-xs mt-8 font-medium">
           Secure Access • useAxiom Platform Foundation
         </p>

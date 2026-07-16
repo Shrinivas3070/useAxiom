@@ -4,8 +4,11 @@ import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
 import { WhatsappModule } from '../modules/whatsapp/whatsapp.module';
 
+import { QueueModule } from '../modules/queue/queue.module';
+
 @Module({
   imports: [
+    QueueModule,
     BullModule.registerQueue({
       name: 'notifications',
     }),

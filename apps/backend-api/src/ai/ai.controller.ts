@@ -1,7 +1,7 @@
 import { Controller, Post, Body, UseGuards, Req } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AiService } from './ai.service';
-import { Request } from 'express';
+import type { Request } from 'express';
 
 @Controller('ai')
 export class AiController {

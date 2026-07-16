@@ -8,18 +8,26 @@ async function main() {
   const passwordHash = await bcrypt.hash('password123', 10);
   
   const user = await prisma.user.upsert({
-    where: { email: 'mockmanager@useaxiom.com' },
+    where: {
+      email: "mockmanager@useaxiom.com"
+    },
     update: {
-      passwordHash,
-      role: 'MANAGER',
+      passwordHash: await bcrypt.hash('password123', 10),
+      role: "MANAGER"
     },
     create: {
-      email: 'mockmanager@useaxiom.com',
-      passwordHash,
-      name: 'Test Manager',
-      phoneNumber: '+19998887777',
-      role: 'MANAGER',
-    },
+      email: "mockmanager@useaxiom.com",
+      passwordHash: await bcrypt.hash('password123', 10),
+      name: "Test Manager",
+      phoneNumber: "+19998887777",
+      role: "MANAGER",
+      organization: {
+        create: {
+          name: "Mock Organization",
+          whatsappBusinessId: "1234567890"
+        }
+      }
+    }
   });
 
   console.log('Seeded test manager:', user.email);
