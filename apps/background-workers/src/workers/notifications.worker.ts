@@ -55,6 +55,18 @@ const TEMPLATES: Record<string, Record<string, { subject?: string; body: string 
     IN_APP: {
       body: `📋 New Task Assigned: You have been assigned "{{taskTitle}}", due on {{dueDate}}.`
     }
+  },
+  PROJECT_RISK_ALERT: {
+    EMAIL: {
+      subject: '⚠️ Project Risk Alert: {{projectName}}',
+      body: `<h3>⚠️ Project Risk Alert</h3>
+<p>Project <strong>{{projectName}}</strong> has been flagged with a high risk score of <strong>{{riskScore}}</strong>.</p>
+<p><strong>Reasoning:</strong> "{{reasoning}}"</p>
+<p>Please review the dashboard for detailed suggestions.</p>`
+    },
+    WHATSAPP: {
+      body: `⚠️ Project Risk Alert: Project {{projectName}} has been flagged with a high risk score of {{riskScore}}. Reasoning: "{{reasoning}}".`
+    }
   }
 };
 

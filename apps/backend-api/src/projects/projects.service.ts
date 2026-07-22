@@ -30,11 +30,19 @@ export class ProjectsService {
     });
   }
 
-  async findAll(organizationId: string): Promise<Project[]> {
+  async findAll(organizationId: string) {
     return this.prisma.project.findMany({
       where: {
         organizationId,
         deletedAt: null,
+      },
+      include: {
+        tasks: {
+          select: {
+            id: true,
+            status: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',

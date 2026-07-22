@@ -26,6 +26,7 @@ interface DBProject {
   status: string;
   healthStatus?: string;
   healthScore?: number;
+  tasks?: Array<{ id: string; status: string }>;
 }
 
 export default function ProjectsPage() {
@@ -70,16 +71,20 @@ export default function ProjectsPage() {
             if (p.healthStatus === "LOW") health = "on_track";
             else if (p.healthStatus === "HIGH") health = "at_risk";
             
+            const tasksTotal = p.tasks?.length || 0;
+            const tasksDone = p.tasks?.filter((t) => t.status === "COMPLETED").length || 0;
+            const progress = tasksTotal > 0 ? Math.round((tasksDone / tasksTotal) * 100) : 0;
+
             return {
               id: p.id,
               name: p.name,
               category: p.category || "General",
               description: p.objective,
               status,
-              progress: p.status === "ACTIVE" ? 10 : p.status === "COMPLETED" ? 100 : 0,
+              progress,
               health,
-              tasksDone: 0, 
-              tasksTotal: 0
+              tasksDone, 
+              tasksTotal
             };
           });
           setProjects(mapped);
@@ -132,16 +137,20 @@ export default function ProjectsPage() {
               if (p.healthStatus === "LOW") health = "on_track";
               else if (p.healthStatus === "HIGH") health = "at_risk";
               
+              const tasksTotal = p.tasks?.length || 0;
+              const tasksDone = p.tasks?.filter((t) => t.status === "COMPLETED").length || 0;
+              const progress = tasksTotal > 0 ? Math.round((tasksDone / tasksTotal) * 100) : 0;
+
               return {
                 id: p.id,
                 name: p.name,
                 category: p.category || "General",
                 description: p.objective,
                 status,
-                progress: p.status === "ACTIVE" ? 10 : p.status === "COMPLETED" ? 100 : 0,
+                progress,
                 health,
-                tasksDone: 0, 
-                tasksTotal: 0
+                tasksDone, 
+                tasksTotal
               };
             });
             setProjects(mapped);
