@@ -56,9 +56,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
     } else if (
       exception &&
       typeof exception === 'object' &&
-      'code' in exception &&
-      typeof (exception as Record<string, unknown>).code === 'string' &&
-      (exception as Record<string, unknown>).code.startsWith('P')
+      typeof (exception as any).code === 'string' &&
+      (exception as any).code.startsWith('P')
     ) {
       // Handle Prisma Errors
       const prismaError = exception as PrismaError;

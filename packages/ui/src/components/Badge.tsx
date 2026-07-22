@@ -1,33 +1,30 @@
-import { HTMLAttributes, forwardRef } from "react";
+import { HTMLAttributes, forwardRef } from 'react';
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
-  variant?: "default" | "proposed" | "pending" | "progress" | "blocked" | "completed" | "error";
+  variant?: 'default' | 'proposed' | 'pending' | 'progress' | 'blocked' | 'completed' | 'error';
 }
 
 export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
-  ({ className = "", variant = "default", children, ...props }, ref) => {
-    const baseStyles = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-colors duration-200";
-    
+  ({ className = '', variant = 'default', children, ...props }, ref) => {
+    const baseStyles =
+      'inline-flex items-center px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider transition-colors duration-200 border-0 shadow-none';
+
     const variants = {
-      default: "bg-zinc-800 text-zinc-300 border-zinc-700",
-      proposed: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-      pending: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-      progress: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-      blocked: "bg-red-500/10 text-red-400 border-red-500/20 animate-pulse",
-      completed: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-      error: "bg-rose-500/10 text-rose-400 border-rose-500/20"
+      default: 'bg-gray-200 text-gray-900',
+      proposed: 'bg-blue-600 text-white',
+      pending: 'bg-amber-500 text-white',
+      progress: 'bg-purple-600 text-white',
+      blocked: 'bg-red-600 text-white',
+      completed: 'bg-emerald-600 text-white',
+      error: 'bg-red-600 text-white',
     };
 
     return (
-      <span
-        ref={ref}
-        className={`${baseStyles} ${variants[variant]} ${className}`}
-        {...props}
-      >
+      <span ref={ref} className={`${baseStyles} ${variants[variant]} ${className}`} {...props}>
         {children}
       </span>
     );
-  }
+  },
 );
 
-Badge.displayName = "Badge";
+Badge.displayName = 'Badge';

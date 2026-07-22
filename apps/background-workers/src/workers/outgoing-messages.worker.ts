@@ -12,12 +12,24 @@ export function createOutgoingMessagesWorker(redisConnection: any) {
       const { to, content } = job.data;
       const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
       const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+      const simulate =
+        process.env.WHATSAPP_SIMULATE === 'true' ||
+        (process.env.NODE_ENV !== 'production' &&
+          (!accessToken ||
+            !phoneNumberId ||
+            accessToken.startsWith('your_') ||
+            accessToken.startsWith('placeholder_')));
 
-      if (accessToken && phoneNumberId) {
+      if (!simulate) {
+        if (!accessToken || !phoneNumberId) {
+          throw new Error(
+            'Meta WhatsApp Business API credentials (WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID) are missing',
+          );
+        }
+
         console.info(
           `[OutgoingWorker] Dispatching real message via Meta WhatsApp Graph API to: ${to}`,
         );
-
         try {
           const response = await fetch(
             `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
@@ -66,6 +78,7 @@ export function createOutgoingMessagesWorker(redisConnection: any) {
         }
       } else {
         console.info(`[OutgoingWorker] (SIMULATED) Outbound message successfully "sent" to: ${to}`);
+        console.info(`[OutgoingWorker] (SIMULATED) Body: "${content}"`);
         return { success: true, sentAt: new Date().toISOString(), simulated: true };
       }
     },

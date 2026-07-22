@@ -15,7 +15,9 @@
     "ioredis": "^5.4.1",
     "@useaxiom/database": "workspace:*",
     "@useaxiom/types": "workspace:*",
-    "@useaxiom/ai-core": "workspace:*"
+    "@useaxiom/ai-core": "workspace:*",
+    "@useaxiom/ai-memory": "workspace:*",
+    "@useaxiom/ai-providers": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

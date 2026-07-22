@@ -1,8 +1,15 @@
 import { Worker, Job, Queue } from 'bullmq';
-import { getMockTasks } from '../utils/mock-db';
+import { prisma } from '@useaxiom/database';
+import { AiOrchestrator } from '@useaxiom/ai-core';
+import { getLlmProvider } from '@useaxiom/ai-providers';
+import { RagMemory } from '@useaxiom/ai-memory';
 
 export function createIncomingMessagesWorker(redisConnection: any, outgoingQueue: Queue) {
   console.info('[IncomingWorker] Starting incoming messages worker...');
+
+  const provider = getLlmProvider();
+  const memory = new RagMemory(provider);
+  const orchestrator = new AiOrchestrator({ provider, memory });
 
   const worker = new Worker(
     'incoming_messages',
@@ -32,101 +39,82 @@ export function createIncomingMessagesWorker(redisConnection: any, outgoingQueue
 
       console.info(`[IncomingWorker] Received message from WaID: ${waId} (${name}): "${text}"`);
 
-      // Intent classification
-      let intent: 'COMPLETED' | 'BLOCKED' | 'DELAYED' | 'STARTING' | 'QUESTION' = 'QUESTION';
-      const cleanText = text.toLowerCase().trim();
+      // Locate task context via Prisma
+      const assignment = await prisma.assignment.findFirst({
+        where: {
+          user: {
+            phoneNumber: waId,
+          },
+          task: {
+            status: {
+              in: ['PENDING', 'IN_PROGRESS', 'BLOCKED'],
+            },
+          },
+        },
+        include: {
+          task: true,
+          user: true,
+        },
+      });
 
-      if (
-        cleanText.includes('done') ||
-        cleanText.includes('finish') ||
-        cleanText.includes('completed') ||
-        cleanText.includes('complete')
-      ) {
-        intent = 'COMPLETED';
-      } else if (
-        cleanText.includes('stuck') ||
-        cleanText.includes('block') ||
-        cleanText.includes('cannot') ||
-        cleanText.includes('cant')
-      ) {
-        intent = 'BLOCKED';
-      } else if (
-        cleanText.includes('delay') ||
-        cleanText.includes('later') ||
-        cleanText.includes('tomorrow') ||
-        cleanText.includes('postpone')
-      ) {
-        intent = 'DELAYED';
-      } else if (
-        cleanText.includes('start') ||
-        cleanText.includes('begin') ||
-        cleanText.includes('ready')
-      ) {
-        intent = 'STARTING';
-      }
-
-      console.info(`[IncomingWorker] Classified intent: ${intent}`);
-
-      // Locate task context
-      const tasks = getMockTasks();
-      const activeTask = tasks.find((t) => t.assigneePhone === waId && t.status !== 'COMPLETED');
-
-      if (activeTask) {
-        console.info(
-          `[IncomingWorker] Active task found for employee: ${activeTask.title} (ID: ${activeTask.id})`,
-        );
-
-        if (intent === 'COMPLETED') {
-          console.info(`[IncomingWorker] Task ${activeTask.id} marked as COMPLETED`);
-          await outgoingQueue.add('send_message', {
-            to: waId,
-            content: `Great job, ${name}! I have marked your task "${activeTask.title}" as COMPLETED. Let me know when you are ready to start the next one.`,
-            timestamp: new Date().toISOString(),
-          });
-        } else if (intent === 'BLOCKED') {
-          console.info(`[IncomingWorker] Task ${activeTask.id} marked as BLOCKED`);
-          await outgoingQueue.add('send_message', {
-            to: waId,
-            content: `I've marked your task "${activeTask.title}" as BLOCKED and notified your manager. We will get back to you shortly.`,
-            timestamp: new Date().toISOString(),
-          });
-
-          // Alert manager
-          const managerPhone = '+1122334455';
-          await outgoingQueue.add('send_message', {
-            to: managerPhone,
-            content: `⚠️ Blocker Alert! Employee ${name} has reported a blocker on task "${activeTask.title}" (ID: ${activeTask.id}). Reason: "${text}". Please log into the dashboard or reply to resolve.`,
-            timestamp: new Date().toISOString(),
-          });
-        } else if (intent === 'STARTING') {
-          await outgoingQueue.add('send_message', {
-            to: waId,
-            content: `Got it! I've updated your status. Good luck starting "${activeTask.title}". Let me know if you run into any issues.`,
-            timestamp: new Date().toISOString(),
-          });
-        } else if (intent === 'DELAYED') {
-          await outgoingQueue.add('send_message', {
-            to: waId,
-            content: `No worries, ${name}. I've logged the delay for "${activeTask.title}". Make sure to keep us updated!`,
-            timestamp: new Date().toISOString(),
-          });
-        } else {
-          await outgoingQueue.add('send_message', {
-            to: waId,
-            content: `Hi ${name}, I couldn't quite determine if you were updating your task status. If you are finished, reply "Done". If you are stuck, reply "Blocked".`,
-            timestamp: new Date().toISOString(),
-          });
-        }
-      } else {
+      if (!assignment) {
         console.warn(`[IncomingWorker] No active task found for employee: ${waId}`);
         await outgoingQueue.add('send_message', {
           to: waId,
           content: `Hi ${name}! You don't have any active task assigned to you right now. I'll alert you as soon as a new task is approved.`,
           timestamp: new Date().toISOString(),
         });
+        return { success: true, processedAt: new Date().toISOString(), intent: 'OTHER' };
       }
 
-      return { success: true, processedAt: new Date().toISOString(), intent };
+      const activeTask = assignment.task;
+      const employeeName = assignment.user.name;
+      console.info(
+        `[IncomingWorker] Active task found for employee: ${activeTask.title} (ID: ${activeTask.id})`,
+      );
+
+      // Inject some task context into the AI's understanding so it can respond appropriately
+      const contextualMessage = `Context - Employee Name: ${employeeName}. Active Task: ${activeTask.title}. Task Description: ${activeTask.description}\n\nEmployee Message: ${text}`;
+
+      console.info(`[IncomingWorker] Invoking ConversationAgent for WaID: ${waId}`);
+      const aiResponse = await orchestrator.getConversation().run({
+        threadId: waId,
+        message: contextualMessage,
+      });
+
+      console.info(`[IncomingWorker] AI classified intent: ${aiResponse.intent}`);
+
+      if (aiResponse.intent === 'COMPLETED') {
+        console.info(`[IncomingWorker] Task ${activeTask.id} marked as COMPLETED`);
+        await prisma.task.update({ where: { id: activeTask.id }, data: { status: 'COMPLETED' } });
+      } else if (aiResponse.intent === 'BLOCKED') {
+        console.info(`[IncomingWorker] Task ${activeTask.id} marked as BLOCKED`);
+
+        const blockReason = aiResponse.extractedParameters?.blockReason || text;
+        console.info(`[IncomingWorker] Blocker Reason: ${blockReason}`);
+
+        await prisma.task.update({
+          where: { id: activeTask.id },
+          data: { status: 'BLOCKED' },
+        });
+
+        // Alert manager
+        const managerPhone = '+1122334455';
+        await outgoingQueue.add('send_message', {
+          to: managerPhone,
+          content: `⚠️ Blocker Alert! Employee ${name} has reported a blocker on task "${activeTask.title}" (ID: ${activeTask.id}). Reason: "${blockReason}". Please log into the dashboard or reply to resolve.`,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // Send the AI generated reply
+      await outgoingQueue.add('send_message', {
+        to: waId,
+        content: aiResponse.reply,
+        timestamp: new Date().toISOString(),
+      });
+
+      return { success: true, processedAt: new Date().toISOString(), intent: aiResponse.intent };
     },
     {
       connection: redisConnection,
