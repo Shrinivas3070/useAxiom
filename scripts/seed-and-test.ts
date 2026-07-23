@@ -1,3 +1,8 @@
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+dotenv.config();
+
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -58,7 +63,7 @@ async function main() {
   console.log(`Task Title: ${task.title}`);
   console.log(`Assigned To WaID: ${employeeWaId}`);
 
-  // 5. Fire webhook request to localhost:3001
+  // 5. Fire webhook request to localhost:8001
   const webhookPayload = {
     object: 'whatsapp_business_account',
     entry: [

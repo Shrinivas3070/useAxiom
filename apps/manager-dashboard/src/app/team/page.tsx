@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { UserCheck, MessageSquare, Trash2 } from 'lucide-react';
 import { Button, Card, Badge } from '@useaxiom/ui';
-import { useRouter } from 'next/navigation';
 
 interface DBUser {
   id: string;
@@ -36,9 +36,23 @@ interface DBProject {
   members?: unknown[];
 }
 
+interface DBWorkload {
+  employee_id: string;
+  employee_name: string;
+  role: string;
+  avatar: string;
+  load: number;
+  active_tasks: number;
+  queued_tasks: number;
+  blocked_tasks: number;
+  status: 'active' | 'offline';
+  current_task_name: string;
+}
+
 export default function TeamPage() {
   const [employees, setEmployees] = useState<DBUser[]>([]);
   const [projects, setProjects] = useState<DBProject[]>([]);
+  const [team, setTeam] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [assigningMap, setAssigningMap] = useState<Record<string, string>>({});
   const router = useRouter();
@@ -158,6 +172,10 @@ export default function TeamPage() {
     if (load >= 60) return 'bg-[#8c7853]';
     return 'bg-[#3e593e]';
   };
+
+  if (loading) {
+    return <div className="text-zinc-400 py-8">Loading workloads...</div>;
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">

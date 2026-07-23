@@ -20,6 +20,7 @@ export const createReportingWorker = (connection: any, notificationQueue: Queue)
         const activeProjects = await prisma.project.findMany({
           where: { status: 'ACTIVE' },
           include: {
+            manager: true,
             tasks: {
               select: {
                 id: true,
@@ -74,12 +75,26 @@ export const createReportingWorker = (connection: any, notificationQueue: Queue)
             console.log(
               `[Reporting Worker] High risk detected for ${project.name}, dispatching alert.`,
             );
-            await notificationQueue.add('manager_alert', {
-              projectId: project.id,
-              projectName: project.name,
-              riskScore: report.riskScore,
-              reasoning: report.reasoning,
-            });
+            if (project.manager) {
+              await notificationQueue.add('send-notification', {
+                recipient: {
+                  phone: project.manager.phoneNumber,
+                  email: project.manager.email,
+                  name: project.manager.name,
+                },
+                channels: ['EMAIL', 'WHATSAPP'],
+                template: 'PROJECT_RISK_ALERT',
+                variables: {
+                  projectName: project.name,
+                  riskScore: report.riskScore,
+                  reasoning: report.reasoning,
+                },
+              });
+            } else {
+              console.warn(
+                `[Reporting Worker] No manager assigned to project ${project.name} (${project.id}). Skipping alert dispatch.`,
+              );
+            }
           }
         }
 

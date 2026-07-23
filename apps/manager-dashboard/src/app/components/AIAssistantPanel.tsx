@@ -1,12 +1,12 @@
-"use client";
+'use client';
 
-import { useState, useRef, useEffect } from "react";
-import { X, Send, Sparkles, Bot, User, RefreshCw, AlertCircle } from "lucide-react";
-import { Button } from "@useaxiom/ui";
+import { useState, useRef, useEffect } from 'react';
+import { X, Send, Sparkles, Bot, User, RefreshCw, AlertCircle } from 'lucide-react';
+import { Button } from '@useaxiom/ui';
 
 interface Message {
   id: string;
-  sender: "user" | "ai";
+  sender: 'user' | 'ai';
   content: string;
   timestamp: string;
 }
@@ -19,25 +19,26 @@ interface AIAssistantPanelProps {
 export default function AIAssistantPanel({ isOpen, onClose }: AIAssistantPanelProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: "1",
-      sender: "ai",
-      content: "Hello! I'm Axiom, your AI project assistant. How can I help you manage your teams and projects today?",
-      timestamp: "10:00 AM",
+      id: '1',
+      sender: 'ai',
+      content:
+        "Hello! I'm Axiom, your AI project assistant. How can I help you manage your teams and projects today?",
+      timestamp: '10:00 AM',
     },
   ]);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const suggestions = [
-    "Why is Milestone 2 delayed?",
-    "Show tasks blocked on Dave",
-    "Ping Sarah for task update",
-    "Review draft project plan",
+    'Why is Milestone 2 delayed?',
+    'Show tasks blocked on Dave',
+    'Ping Sarah for task update',
+    'Review draft project plan',
   ];
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   useEffect(() => {
@@ -52,41 +53,64 @@ export default function AIAssistantPanel({ isOpen, onClose }: AIAssistantPanelPr
     idCounterRef.current += 1;
     const userMessage: Message = {
       id: `user-msg-${idCounterRef.current}`,
-      sender: "user",
+      sender: 'user',
       content: textToSend,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    setInput("");
+    setInput('');
     setIsTyping(true);
 
-    // Simulate AI response based on the query
-    setTimeout(() => {
-      let aiResponseText = "I've processed your query. Let me look into that for you.";
-      
-      const query = textToSend.toLowerCase();
-      if (query.includes("milestone") || query.includes("delayed")) {
-        aiResponseText = "Milestone 2 is currently delayed by 1 day because Dave reported a blocker on 'Load Graphics' (the Google Drive link is broken). Sarah is also running behind on 'Configure Audience'. Would you like me to ping Sarah or reassign Dave's task?";
-      } else if (query.includes("blocked") || query.includes("dave")) {
-        aiResponseText = "Dave has 1 blocked task: 'Load Graphics'. He reported that the Google Drive link is broken. I can prompt you to upload a new asset link, or reassign it.";
-      } else if (query.includes("ping") || query.includes("sarah")) {
-        aiResponseText = "I've scheduled a high-priority WhatsApp ping to Sarah requesting an update on 'Configure Audience'. You'll see her response here as soon as she replies.";
-      } else if (query.includes("plan") || query.includes("draft")) {
-        aiResponseText = "I've drafted a new project plan for 'Q3 Marketing Launch' with 2 Milestones and 3 proposed tasks. You can view it on your home dashboard under 'Pending Approvals'.";
+    try {
+      const token = localStorage.getItem('axiom_token');
+      const res = await fetch('/api/v1/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          message: textToSend,
+          threadId: 'dashboard-thread',
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Chat service returned an error');
       }
 
+      const data = await res.json();
       idCounterRef.current += 1;
+
+      let aiResponseText = '';
+      if (data.success) {
+        aiResponseText = data.data;
+      } else {
+        aiResponseText = `Error: ${data.error || 'Failed to process chat query'}`;
+      }
+
       const aiMessage: Message = {
         id: `ai-msg-${idCounterRef.current}`,
-        sender: "ai",
+        sender: 'ai',
         content: aiResponseText,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
-
       setMessages((prev) => [...prev, aiMessage]);
+    } catch (err: unknown) {
+      console.error(err);
+      idCounterRef.current += 1;
+      const messageText = err instanceof Error ? err.message : 'Unknown error';
+      const aiMessage: Message = {
+        id: `ai-msg-${idCounterRef.current}`,
+        sender: 'ai',
+        content: `Could not connect to the AI engine: ${messageText}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, aiMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -102,7 +126,7 @@ export default function AIAssistantPanel({ isOpen, onClose }: AIAssistantPanelPr
       {/* Slide-out Panel */}
       <div
         className={`fixed top-0 right-0 h-full w-full sm:w-[480px] bg-zinc-950 border-l border-zinc-800 shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out ${
-          isOpen ? "translate-x-0" : "translate-x-full"
+          isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         {/* Header */}
@@ -133,35 +157,31 @@ export default function AIAssistantPanel({ isOpen, onClose }: AIAssistantPanelPr
             <div
               key={msg.id}
               className={`flex gap-3 max-w-[85%] ${
-                msg.sender === "user" ? "ml-auto flex-row-reverse" : ""
+                msg.sender === 'user' ? 'ml-auto flex-row-reverse' : ''
               }`}
             >
               <div
                 className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${
-                  msg.sender === "user"
-                    ? "bg-zinc-800 border-zinc-700 text-zinc-200"
-                    : "bg-purple-950/40 border-purple-800/40 text-purple-400"
+                  msg.sender === 'user'
+                    ? 'bg-zinc-800 border-zinc-700 text-zinc-200'
+                    : 'bg-purple-950/40 border-purple-800/40 text-purple-400'
                 }`}
               >
-                {msg.sender === "user" ? (
-                  <User className="w-4 h-4" />
-                ) : (
-                  <Bot className="w-4 h-4" />
-                )}
+                {msg.sender === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
               </div>
               <div className="flex flex-col gap-1">
                 <div
                   className={`p-3 rounded-2xl text-sm leading-relaxed ${
-                    msg.sender === "user"
-                      ? "bg-purple-600 text-white rounded-tr-none"
-                      : "bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-tl-none"
+                    msg.sender === 'user'
+                      ? 'bg-purple-600 text-white rounded-tr-none'
+                      : 'bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-tl-none'
                   }`}
                 >
                   {msg.content}
                 </div>
                 <span
                   className={`text-[10px] text-zinc-500 px-1 ${
-                    msg.sender === "user" ? "text-right" : ""
+                    msg.sender === 'user' ? 'text-right' : ''
                   }`}
                 >
                   {msg.timestamp}
@@ -176,9 +196,18 @@ export default function AIAssistantPanel({ isOpen, onClose }: AIAssistantPanelPr
                 <RefreshCw className="w-4 h-4 animate-spin" />
               </div>
               <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tl-none flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-bounce" style={{ animationDelay: "0ms" }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-bounce" style={{ animationDelay: "150ms" }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+                <span
+                  className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-bounce"
+                  style={{ animationDelay: '0ms' }}
+                />
+                <span
+                  className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-bounce"
+                  style={{ animationDelay: '150ms' }}
+                />
+                <span
+                  className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-bounce"
+                  style={{ animationDelay: '300ms' }}
+                />
               </div>
             </div>
           )}
@@ -188,7 +217,9 @@ export default function AIAssistantPanel({ isOpen, onClose }: AIAssistantPanelPr
         {/* Suggestion Chips */}
         {messages.length === 1 && (
           <div className="px-4 pb-2">
-            <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">Suggested Actions</p>
+            <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+              Suggested Actions
+            </p>
             <div className="flex flex-wrap gap-1.5">
               {suggestions.map((suggestion, index) => (
                 <button
@@ -231,7 +262,9 @@ export default function AIAssistantPanel({ isOpen, onClose }: AIAssistantPanelPr
           </form>
           <div className="mt-2 flex items-center gap-1.5 justify-center">
             <AlertCircle className="w-3 h-3 text-zinc-500" />
-            <span className="text-[10px] text-zinc-500">Updates are piped to WhatsApp agents automatically.</span>
+            <span className="text-[10px] text-zinc-500">
+              Updates are piped to WhatsApp agents automatically.
+            </span>
           </div>
         </div>
       </div>

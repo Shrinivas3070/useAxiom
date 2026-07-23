@@ -78,6 +78,18 @@ Please reply if you have questions or updates!`,
       body: `🚀 New Project Assigned: You have been assigned to "{{projectName}}", target deadline is {{dueDate}}.`,
     },
   },
+  PROJECT_RISK_ALERT: {
+    EMAIL: {
+      subject: '⚠️ Project Risk Alert: {{projectName}}',
+      body: `<h3>⚠️ Project Risk Alert</h3>
+<p>Project <strong>{{projectName}}</strong> has been flagged with a high risk score of <strong>{{riskScore}}</strong>.</p>
+<p><strong>Reasoning:</strong> "{{reasoning}}"</p>
+<p>Please review the dashboard for detailed suggestions.</p>`,
+    },
+    WHATSAPP: {
+      body: `⚠️ Project Risk Alert: Project {{projectName}} has been flagged with a high risk score of {{riskScore}}. Reasoning: "{{reasoning}}".`,
+    },
+  },
 };
 
 function compileTemplate(templateStr: string, variables: Record<string, any>): string {

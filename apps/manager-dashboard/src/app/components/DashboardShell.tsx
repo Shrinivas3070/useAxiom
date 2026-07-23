@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -14,23 +14,66 @@ import {
   Menu,
   X,
   Bell,
+  ShieldAlert,
+  CreditCard,
+  Link2,
 } from 'lucide-react';
 import { Button } from '@useaxiom/ui';
 import AIAssistantPanel from './AIAssistantPanel';
 
-interface DashboardShellProps {
-  children: React.ReactNode;
+interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  organization: {
+    name: string;
+  };
 }
 
-export default function DashboardShell({ children }: DashboardShellProps) {
-  const pathname = usePathname();
+export default function DashboardShell({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAIOpen, setIsAIOpen] = useState(false);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    const token = localStorage.getItem('axiom_token');
+    if (!token) return;
+
+    fetch('/api/v1/auth/me', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => {
+        if (r.status === 401) throw new Error('Unauthorized');
+        return r.json();
+      })
+      .then((data) => {
+        if (data) setUser(data);
+      })
+      .catch((err) => console.error('Error fetching user profile:', err));
+  }, []);
+
+  const initials = user?.name
+    ? user.name
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+        .substring(0, 2)
+    : 'DM';
 
   const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Projects', href: '/projects', icon: FolderKanban },
     { name: 'Team Workload', href: '/team', icon: Users },
+    ...(user?.role === 'ADMIN'
+      ? [
+          { name: 'Users & Invites', href: '/admin/users', icon: ShieldAlert },
+          { name: 'Integrations', href: '/admin/integrations', icon: Link2 },
+          { name: 'Billing', href: '/admin/billing', icon: CreditCard },
+        ]
+      : []),
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
@@ -79,12 +122,14 @@ export default function DashboardShell({ children }: DashboardShellProps) {
         {/* User Card */}
         <div className="p-4 border-t border-[#e6e3da]/80 bg-white flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-[#8c7853]/10 flex items-center justify-center text-[#8c7853] font-serif font-black text-sm">
-            DM
+            {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <span className="block text-xs font-black text-[#1c1b18] truncate">David Miller</span>
+            <span className="block text-xs font-black text-[#1c1b18] truncate">
+              {user?.name || 'David Miller'}
+            </span>
             <span className="block text-[10px] font-bold text-[#66635d] truncate uppercase tracking-wider">
-              Project Lead
+              {user?.role || 'Manager'} @ {user?.organization?.name || 'Axiom'}
             </span>
           </div>
         </div>
@@ -135,12 +180,14 @@ export default function DashboardShell({ children }: DashboardShellProps) {
             </nav>
             <div className="pt-4 border-t border-[#e6e3da] flex items-center gap-3">
               <div className="w-10 h-10 bg-[#8c7853]/10 text-[#8c7853] rounded-lg flex items-center justify-center font-serif font-black">
-                DM
+                {initials}
               </div>
               <div className="flex-1 min-w-0">
-                <span className="block text-xs font-black truncate">David Miller</span>
+                <span className="block text-xs font-black truncate">
+                  {user?.name || 'David Miller'}
+                </span>
                 <span className="block text-[10px] font-bold text-[#66635d] truncate uppercase tracking-wider">
-                  Project Lead
+                  {user?.role || 'Manager'}
                 </span>
               </div>
             </div>

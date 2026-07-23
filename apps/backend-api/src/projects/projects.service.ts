@@ -43,7 +43,7 @@ export class ProjectsService {
     });
   }
 
-  async findAll(organizationId: string): Promise<any[]> {
+  async findAll(organizationId: string) {
     return this.prisma.project.findMany({
       where: {
         organizationId,
@@ -51,6 +51,12 @@ export class ProjectsService {
       },
       include: {
         members: true,
+        tasks: {
+          select: {
+            id: true,
+            status: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',

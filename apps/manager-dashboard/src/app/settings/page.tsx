@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Cpu,
   MessageSquare,
@@ -40,6 +41,14 @@ export default function SettingsPage() {
     return 'assisted';
   });
   const [isSaved, setIsSaved] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const token = localStorage.getItem('axiom_token');
+    if (!token) {
+      router.push('/login');
+    }
+  }, [router]);
 
   const handleSave = () => {
     if (typeof window !== 'undefined') {

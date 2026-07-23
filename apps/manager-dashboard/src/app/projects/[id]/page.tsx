@@ -293,16 +293,32 @@ export default function ProjectDetailPage({ params }: PageProps) {
             </div>
           )}
           <div className="w-full lg:w-72 bg-white p-5 rounded-xl border border-[#e6e3da]/80 shadow-sm space-y-3">
-            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-[#1c1b18]">
-              <span>Campaign Progress</span>
-              <span className="text-[#8c7853]">{project.status === 'ACTIVE' ? 10 : 0}%</span>
-            </div>
-            <div className="w-full bg-[#f2efe9] h-2 rounded-full overflow-hidden">
-              <div
-                className="bg-[#8c7853] h-full rounded-full"
-                style={{ width: `${project.status === 'ACTIVE' ? 10 : 0}%` }}
-              />
-            </div>
+            {(() => {
+              const tasksTotal = tasks.length;
+              const tasksDone = tasks.filter(
+                (t) => t.status === 'COMPLETED' || t.status === 'completed',
+              ).length;
+              const progressPercent =
+                tasksTotal > 0
+                  ? Math.round((tasksDone / tasksTotal) * 100)
+                  : project.status === 'ACTIVE'
+                    ? 10
+                    : 0;
+              return (
+                <>
+                  <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-[#1c1b18]">
+                    <span>Campaign Progress</span>
+                    <span className="text-[#8c7853]">{progressPercent}%</span>
+                  </div>
+                  <div className="w-full bg-[#f2efe9] h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-[#8c7853] h-full rounded-full transition-all duration-500"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       </div>

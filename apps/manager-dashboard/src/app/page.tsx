@@ -26,6 +26,7 @@ export default function Home() {
       healthScore?: number;
       healthStatus?: string;
       healthReasoning?: string;
+      tasks?: Array<{ id: string; status: string }>;
     }>
   >([]);
   const [statsData, setStatsData] = useState<{
@@ -42,6 +43,7 @@ export default function Home() {
       capacity_percentage: number;
     }>
   >([]);
+  const [user, setUser] = useState<{ name: string } | null>(null);
 
   const router = useRouter();
 
@@ -63,11 +65,15 @@ export default function Home() {
       fetch('/api/v1/analytics/team-workload', {
         headers: { Authorization: `Bearer ${token}` },
       }).then((r) => r.json()),
+      fetch('/api/v1/auth/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((r) => r.json()),
     ])
-      .then(([projectsData, dashboardData, workloadData]) => {
+      .then(([projectsData, dashboardData, workloadData, userData]) => {
         if (Array.isArray(projectsData)) setProjects(projectsData);
         setStatsData(dashboardData);
         if (workloadData?.workloads) setWorkloads(workloadData.workloads);
+        if (userData) setUser(userData);
       })
       .catch((err) => {
         if (err.message === 'Unauthorized') {
@@ -158,7 +164,7 @@ export default function Home() {
             <span>Sprint 1 Foundations Operational</span>
           </div>
           <h1 className="text-4xl sm:text-5xl font-serif font-black tracking-tight text-white mb-4">
-            Welcome back, David
+            Welcome back, {user ? user.name.split(' ')[0] : 'Manager'}
           </h1>
           <p className="text-[#a8a49c] text-sm font-bold tracking-wide leading-relaxed max-w-xl">
             Your execution assistants are actively listening on employee WhatsApp channels. You have{' '}
@@ -293,89 +299,99 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {projects.map((project) => (
-                <Link href={`/projects/${project.id}`} key={project.id} className="block group">
-                  <Card className="h-full border border-[#e6e3da]/80 group-hover:border-[#8c7853] group-hover:shadow-md transition-all duration-300 flex flex-col">
-                    <div className="flex justify-between items-start mb-6">
-                      <div className="space-y-2">
-                        <h3 className="font-serif font-black text-lg text-[#1c1b18] group-hover:text-[#8c7853] transition-colors leading-tight">
-                          {project.name}
-                        </h3>
-                        <p className="text-xs text-[#66635d] font-semibold line-clamp-2 leading-relaxed">
-                          {project.objective}
-                        </p>
-                      </div>
-                      <Badge variant={project.status === 'ACTIVE' ? 'progress' : 'proposed'}>
-                        {project.status === 'ACTIVE' ? 'Active' : project.status}
-                      </Badge>
-                    </div>
+              {projects.map((project) => {
+                const tasksTotal = project.tasks?.length || 0;
+                const tasksDone =
+                  project.tasks?.filter((t) => t.status === 'COMPLETED').length || 0;
+                const progress =
+                  tasksTotal > 0
+                    ? Math.round((tasksDone / tasksTotal) * 100)
+                    : project.status === 'ACTIVE'
+                      ? 5
+                      : 0;
 
-                    {/* Progress bar */}
-                    <div className="space-y-2 mt-auto pt-6 border-t border-[#faf8f5]">
-                      <div className="flex justify-between text-[10px] font-black text-[#66635d] uppercase tracking-widest">
-                        <span>Progress</span>
-                        <span className="text-[#1c1b18]">
-                          {project.status === 'ACTIVE' ? '5%' : '0%'}
-                        </span>
+                return (
+                  <Link href={`/projects/${project.id}`} key={project.id} className="block group">
+                    <Card className="h-full border border-[#e6e3da]/80 group-hover:border-[#8c7853] group-hover:shadow-md transition-all duration-300 flex flex-col">
+                      <div className="flex justify-between items-start mb-6">
+                        <div className="space-y-2">
+                          <h3 className="font-serif font-black text-lg text-[#1c1b18] group-hover:text-[#8c7853] transition-colors leading-tight">
+                            {project.name}
+                          </h3>
+                          <p className="text-xs text-[#66635d] font-semibold line-clamp-2 leading-relaxed">
+                            {project.objective}
+                          </p>
+                        </div>
+                        <Badge variant={project.status === 'ACTIVE' ? 'progress' : 'proposed'}>
+                          {project.status === 'ACTIVE' ? 'Active' : project.status}
+                        </Badge>
                       </div>
-                      <div className="w-full bg-[#f2efe9] h-2 rounded-full overflow-hidden">
-                        <div
-                          className="bg-[#8c7853] h-full rounded-full"
-                          style={{ width: project.status === 'ACTIVE' ? '5%' : '0%' }}
-                        />
-                      </div>
-                    </div>
-                    {project.healthScore !== undefined && project.healthScore !== null && (
-                      <div
-                        className={`mt-4 p-3 rounded-lg border border-l-4 ${project.healthStatus === 'HIGH' ? 'border-red-200 border-l-[#9f3a38] bg-[#fdf2f2]' : project.healthStatus === 'MEDIUM' ? 'border-amber-200 border-l-[#bda272] bg-[#FCF5EB]' : 'border-emerald-200 border-l-[#3e593e] bg-[#f0f5f0]'} flex justify-between items-center`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <AlertTriangle
-                            className={`w-3.5 h-3.5 ${project.healthStatus === 'HIGH' ? 'text-[#9f3a38]' : project.healthStatus === 'MEDIUM' ? 'text-[#bda272]' : 'text-[#3e593e]'}`}
+
+                      {/* Progress bar */}
+                      <div className="space-y-2 mt-auto pt-6 border-t border-[#faf8f5]">
+                        <div className="flex justify-between text-[10px] font-black text-[#66635d] uppercase tracking-widest">
+                          <span>Progress</span>
+                          <span className="text-[#1c1b18]">{progress}%</span>
+                        </div>
+                        <div className="w-full bg-[#f2efe9] h-2 rounded-full overflow-hidden">
+                          <div
+                            className="bg-[#8c7853] h-full rounded-full"
+                            style={{ width: `${progress}%` }}
                           />
-                          <span className="text-[10px] font-black text-[#1c1b18] uppercase tracking-widest">
-                            AI Risk
+                        </div>
+                      </div>
+                      {project.healthScore !== undefined && project.healthScore !== null && (
+                        <div
+                          className={`mt-4 p-3 rounded-lg border border-l-4 ${project.healthStatus === 'HIGH' ? 'border-red-200 border-l-[#9f3a38] bg-[#fdf2f2]' : project.healthStatus === 'MEDIUM' ? 'border-amber-200 border-l-[#bda272] bg-[#FCF5EB]' : 'border-emerald-200 border-l-[#3e593e] bg-[#f0f5f0]'} flex justify-between items-center`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle
+                              className={`w-3.5 h-3.5 ${project.healthStatus === 'HIGH' ? 'text-[#9f3a38]' : project.healthStatus === 'MEDIUM' ? 'text-[#bda272]' : 'text-[#3e593e]'}`}
+                            />
+                            <span className="text-[10px] font-black text-[#1c1b18] uppercase tracking-widest">
+                              AI Risk
+                            </span>
+                          </div>
+                          <span
+                            className={`text-xs font-black ${project.healthStatus === 'HIGH' ? 'text-[#9f3a38]' : project.healthStatus === 'MEDIUM' ? 'text-[#bda272]' : 'text-[#3e593e]'}`}
+                          >
+                            {project.healthScore}/100
                           </span>
                         </div>
+                      )}
+                      <div className="mt-6 pt-4 border-t border-[#e6e3da]/80 flex items-center justify-between text-[10px] font-black tracking-widest">
                         <span
-                          className={`text-xs font-black ${project.healthStatus === 'HIGH' ? 'text-[#9f3a38]' : project.healthStatus === 'MEDIUM' ? 'text-[#bda272]' : 'text-[#3e593e]'}`}
+                          className={
+                            project.status === 'ACTIVE' ? 'text-[#3e593e]' : 'text-[#bda272]'
+                          }
                         >
-                          {project.healthScore}/100
+                          {project.status === 'ACTIVE' ? 'ON TRACK' : 'NEEDS REVIEW'}
+                        </span>
+                        <span className="flex gap-2">
+                          <button
+                            className="text-[#66635d] hover:text-[#1c1b18] transition-colors uppercase tracking-widest text-[9px] cursor-pointer"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleGenerate(project.id);
+                            }}
+                          >
+                            Generate
+                          </button>
+                          <button
+                            className="text-[#8c7853] hover:text-[#736243] transition-colors uppercase tracking-widest text-[9px] cursor-pointer"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleApprove(project.id);
+                            }}
+                          >
+                            Approve
+                          </button>
                         </span>
                       </div>
-                    )}
-                    <div className="mt-6 pt-4 border-t border-[#e6e3da]/80 flex items-center justify-between text-[10px] font-black tracking-widest">
-                      <span
-                        className={
-                          project.status === 'ACTIVE' ? 'text-[#3e593e]' : 'text-[#bda272]'
-                        }
-                      >
-                        {project.status === 'ACTIVE' ? 'ON TRACK' : 'NEEDS REVIEW'}
-                      </span>
-                      <span className="flex gap-2">
-                        <button
-                          className="text-[#66635d] hover:text-[#1c1b18] transition-colors uppercase tracking-widest text-[9px] cursor-pointer"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleGenerate(project.id);
-                          }}
-                        >
-                          Generate
-                        </button>
-                        <button
-                          className="text-[#8c7853] hover:text-[#736243] transition-colors uppercase tracking-widest text-[9px] cursor-pointer"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleApprove(project.id);
-                          }}
-                        >
-                          Approve
-                        </button>
-                      </span>
-                    </div>
-                  </Card>
-                </Link>
-              ))}
+                    </Card>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </div>

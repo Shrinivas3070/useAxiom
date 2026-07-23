@@ -12,13 +12,15 @@ export function createOutgoingMessagesWorker(redisConnection: any) {
       const { to, content } = job.data;
       const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
       const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+      const isPlaceholder = (val?: string) =>
+        !val || val.startsWith('your_') || val.startsWith('your-') || val.includes('placeholder');
       const simulate =
         process.env.WHATSAPP_SIMULATE === 'true' ||
         (process.env.NODE_ENV !== 'production' &&
           (!accessToken ||
             !phoneNumberId ||
-            accessToken.startsWith('your_') ||
-            accessToken.startsWith('placeholder_')));
+            isPlaceholder(accessToken) ||
+            isPlaceholder(phoneNumberId)));
 
       if (!simulate) {
         if (!accessToken || !phoneNumberId) {

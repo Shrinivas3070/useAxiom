@@ -58,31 +58,37 @@ async function setupRepeatableJobs() {
       await reminderSchedulerQueue.removeRepeatableByKey(job.key);
     }
 
+    const checkDeadlinesPattern = process.env.CRON_CHECK_DEADLINES || '*/1 * * * *';
     await reminderSchedulerQueue.add(
       'check_deadlines',
       {},
       {
         repeat: {
-          pattern: '*/1 * * * *', // Run every minute
+          pattern: checkDeadlinesPattern,
         },
       },
     );
-    console.info('[Background Workers] Repeatable job check_deadlines scheduled successfully');
+    console.info(
+      `[Background Workers] Repeatable job check_deadlines scheduled successfully with pattern: ${checkDeadlinesPattern}`,
+    );
 
     const reportingJobs = await reportingSchedulerQueue.getRepeatableJobs();
     for (const job of reportingJobs) {
       await reportingSchedulerQueue.removeRepeatableByKey(job.key);
     }
+    const checkHealthPattern = process.env.CRON_CHECK_HEALTH || '*/1 * * * *';
     await reportingSchedulerQueue.add(
       'check_health',
       {},
       {
         repeat: {
-          pattern: '*/1 * * * *', // Run every 1 minutes
+          pattern: checkHealthPattern,
         },
       },
     );
-    console.info('[Background Workers] Repeatable job check_health scheduled successfully');
+    console.info(
+      `[Background Workers] Repeatable job check_health scheduled successfully with pattern: ${checkHealthPattern}`,
+    );
   } catch (error) {
     console.error('[Background Workers] Failed to setup repeatable jobs:', error);
   }
