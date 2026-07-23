@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FolderKanban, Search, Plus, X } from "lucide-react";
 import { Button, Card, Badge } from "@useaxiom/ui";
 
@@ -29,7 +29,7 @@ interface DBProject {
   tasks?: Array<{ id: string; status: string }>;
 }
 
-export default function ProjectsPage() {
+function ProjectsPageContent() {
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"all" | "progress" | "proposed" | "completed">("all");
   const [projects, setProjects] = useState<Project[]>([]);
@@ -39,6 +39,13 @@ export default function ProjectsPage() {
   const [newObjective, setNewObjective] = useState("");
   
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("create") === "true") {
+      setShowModal(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -342,5 +349,13 @@ export default function ProjectsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ProjectsPage() {
+  return (
+    <Suspense fallback={<div className="text-zinc-400 py-8">Loading workspace...</div>}>
+      <ProjectsPageContent />
+    </Suspense>
   );
 }

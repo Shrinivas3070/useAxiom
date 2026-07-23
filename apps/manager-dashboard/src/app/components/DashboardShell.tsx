@@ -206,7 +206,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
               <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full" />
             </button>
 
-            <Link href="/projects">
+            <Link href="/projects?create=true">
               <Button variant="primary" size="sm" className="hidden sm:inline-flex shadow-none border-0 h-11 px-5 rounded-xl">
                 <Plus className="w-4 h-4" />
                 <span>New Project</span>

@@ -4,24 +4,26 @@ import { Queue } from 'bullmq';
 
 @Injectable()
 export class NotificationsService {
-  constructor(
-    @InjectQueue('notifications') private notificationsQueue: Queue,
-  ) {}
+  constructor(@InjectQueue('notifications') private notificationsQueue: Queue) {}
 
   async sendTestNotification(userId: string, message: string) {
-    const job = await this.notificationsQueue.add('test-notification', {
-      userId,
-      message,
-      timestamp: new Date().toISOString(),
-    }, {
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 1000 },
-    });
-    
+    const job = await this.notificationsQueue.add(
+      'test-notification',
+      {
+        userId,
+        message,
+        timestamp: new Date().toISOString(),
+      },
+      {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 1000 },
+      },
+    );
+
     return {
       success: true,
       jobId: job.id,
-      message: 'Notification job queued successfully'
+      message: 'Notification job queued successfully',
     };
   }
 
@@ -59,9 +61,16 @@ export class NotificationsService {
     }
   }
 
-  async sendBlockerAlert(taskId: string, managerPhone: string, employeeName: string, reason: string): Promise<void> {
-    console.info(`[NotificationsService] Triggering blocker alert for task ${taskId} to manager ${managerPhone}`);
-    
+  async sendBlockerAlert(
+    taskId: string,
+    managerPhone: string,
+    employeeName: string,
+    reason: string,
+  ): Promise<void> {
+    console.info(
+      `[NotificationsService] Triggering blocker alert for task ${taskId} to manager ${managerPhone}`,
+    );
+
     await this.notificationsQueue.add(
       'send-notification',
       {
@@ -87,9 +96,16 @@ export class NotificationsService {
     );
   }
 
-  async sendDeadlineReminder(taskId: string, employeePhone: string, taskTitle: string, hoursRemaining: number): Promise<void> {
-    console.info(`[NotificationsService] Triggering deadline reminder for task ${taskId} to employee ${employeePhone}`);
-    
+  async sendDeadlineReminder(
+    taskId: string,
+    employeePhone: string,
+    taskTitle: string,
+    hoursRemaining: number,
+  ): Promise<void> {
+    console.info(
+      `[NotificationsService] Triggering deadline reminder for task ${taskId} to employee ${employeePhone}`,
+    );
+
     await this.notificationsQueue.add(
       'send-notification',
       {
@@ -113,9 +129,16 @@ export class NotificationsService {
     );
   }
 
-  async sendTaskAssignedAlert(taskId: string, employeePhone: string, taskTitle: string, dueDate: string): Promise<void> {
-    console.info(`[NotificationsService] Triggering task assignment alert for task ${taskId} to employee ${employeePhone}`);
-    
+  async sendTaskAssignedAlert(
+    taskId: string,
+    employeePhone: string,
+    taskTitle: string,
+    dueDate: string,
+  ): Promise<void> {
+    console.info(
+      `[NotificationsService] Triggering task assignment alert for task ${taskId} to employee ${employeePhone}`,
+    );
+
     await this.notificationsQueue.add(
       'send-notification',
       {

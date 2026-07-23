@@ -148,13 +148,10 @@ export class TasksService {
 
       const incomplete = blockedBy.filter(
         (dep: any) =>
-          dep.dependsOnTask.status !== 'COMPLETED' &&
-          dep.dependsOnTask.deletedAt === null,
+          dep.dependsOnTask.status !== 'COMPLETED' && dep.dependsOnTask.deletedAt === null,
       );
       if (incomplete.length > 0) {
-        const names = incomplete
-          .map((dep: any) => `'${dep.dependsOnTask.title}'`)
-          .join(', ');
+        const names = incomplete.map((dep: any) => `'${dep.dependsOnTask.title}'`).join(', ');
         throw new BadRequestException(
           `Cannot start task. It is blocked by incomplete prerequisite tasks: ${names}.`,
         );
@@ -248,9 +245,7 @@ export class TasksService {
     });
 
     if (!user) {
-      throw new NotFoundException(
-        `User with ID ${userId} not found in this organization`,
-      );
+      throw new NotFoundException(`User with ID ${userId} not found in this organization`);
     }
 
     return this.prisma.assignment.upsert({

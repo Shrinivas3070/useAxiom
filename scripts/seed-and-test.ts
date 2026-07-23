@@ -61,7 +61,7 @@ async function main() {
   console.log(`Task Title: ${task.title}`);
   console.log(`Assigned To WaID: ${employeeWaId}`);
 
-  // 5. Fire webhook request to localhost:3001
+  // 5. Fire webhook request to localhost:8001
   const webhookPayload = {
     object: 'whatsapp_business_account',
     entry: [{
@@ -77,10 +77,10 @@ async function main() {
     }]
   };
 
-  console.log('\nSending webhook POST request to http://localhost:3001/api/v1/webhooks/whatsapp...');
+  console.log('\nSending webhook POST request to http://localhost:8001/api/v1/webhooks/whatsapp...');
   
   try {
-    const res = await fetch('http://localhost:3001/api/v1/webhooks/whatsapp', {
+    const res = await fetch('http://localhost:8001/api/v1/webhooks/whatsapp', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

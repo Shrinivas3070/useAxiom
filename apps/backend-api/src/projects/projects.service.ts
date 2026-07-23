@@ -120,7 +120,7 @@ export class ProjectsService {
       throw new NotFoundException(`Project with ID ${id} not found under your organization`);
     }
     const jobId = `job_${Math.random().toString(36).substring(2, 11)}`;
-    
+
     await this.plannerQueue.add('generate-plan', {
       projectId: id,
       objective: project.objective,
